@@ -1,0 +1,65 @@
+[
+  {
+    "id": "1",
+    "title": "Prime Phone X ",
+    "description": "Experience the future with the Prime Phone X. Featuring a stunning OLED display and our fastest processor yet.",
+    "price": 999,
+    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": "2",
+    "title": "Sonic Earbuds Pro",
+    "description": "Immersive sound, active noise cancellation, and all-day comfort.",
+    "price": 249,
+    "image": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": "3",
+    "title": "UltraWatch Series 5",
+    "description": "Stay connected and healthy with the UltraWatch Series 5. Your personal fitness companion.",
+    "price": 399,
+    "image": "https://images.unsplash.com/photo-1546868871-7041f2a55e12?q=80&w=800&auto=format&fit=crop"
+  },
+  {
+    "id": "1766246338902",
+    "title": "test",
+    "description": "test",
+    "price": 1200,
+    "image": "/uploads/1766246338897-pexels-pixabay-51383.jpg"
+  },
+  {
+    "id": "1766246427107",
+    "title": "test",
+    "description": "test tyyyyyyyyyyyyyyyyyyy\r\nddddddddddddddddddd\r\nccv\r\n\r\n\r\n\r\n\r\nssd\r\n\r\nssdd",
+    "price": 75.97,
+    "image": "/uploads/1766246427023-audio-casque-pour-ecouter.jpg"
+  },
+  {
+    "id": "1766252186818",
+    "title": "test",
+    "description": "test",
+    "price": 120,
+    "image": "/uploads/1766252186801-pexels-fujifilmusa-3497060.jpg"
+  },
+  {
+    "id": "1766254764460",
+    "title": "test",
+    "description": "test",
+    "price": 150,
+    "image": "/uploads/1766254764424-pexels-rachel-claire-4993239.jpg"
+  },
+  {
+    "id": "1766257416020",
+    "title": "teeeeeeeeeeeeeeeee",
+    "description": "sd",
+    "price": 21212121,
+    "image": "/uploads/1766257416015-pexels-pixabay-51383.jpg"
+  },
+  {
+    "id": "1766838013640",
+    "title": "test",
+    "description": "test",
+    "price": 20,
+    "image": "/uploads/1766838013628-pexels-zeleboba-28190457.jpg"
+  }
+]

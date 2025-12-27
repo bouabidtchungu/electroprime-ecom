@@ -1,0 +1,39 @@
+{
+  "hero": {
+    "subtitle": "About This Page         ",
+    "title": "Website Test Environment          ",
+    "description": "This page is used for layout, design, and functionality testing. The text here is placeholder content and does not represent a real company, product, or service.\n\n"
+  },
+  "values": [
+    {
+      "title": "Sample Feature One  ",
+      "description": "Sample Feature One   \nThis section demonstrates how text content appears within a column layout. It is intended only for visual and structural testing purposes."
+    },
+    {
+      "title": "Uncompromising Quality           ",
+      "description": "Every item in our collection is backed by our guarantee. If it's not the best in its class, we simply don't carry it."
+    },
+    {
+      "title": "Sample Feature Two          ",
+      "description": "\nAll text shown here is temporary and may be replaced later. The goal is to verify spacing, alignment, and responsiveness."
+    }
+  ],
+  "stats": [
+    {
+      "value": "10k+ ",
+      "label": "Products Sold "
+    },
+    {
+      "value": "99%  ",
+      "label": "Satisfaction   "
+    },
+    {
+      "value": "24/7    ",
+      "label": "Expert Support    "
+    },
+    {
+      "value": "50+",
+      "label": "Global Partners   "
+    }
+  ]
+}
