@@ -15,19 +15,34 @@ const HomePage = () => {
     const [heroContent, setHeroContent] = useState(HERO_CONTENT);
     const dispatch = useDispatch();
 
-    useEffect(() => {
-        fetch('/api/products')
-            .then(res => res.json())
-            .then(data => setProducts(data))
-            .catch(err => console.error(err));
+    const [error, setError] = useState(null);
 
-        fetch('/api/home')
-            .then(res => res.json())
-            .then(data => {
-                if (data && data.title) setHeroContent(data);
-            })
-            .catch(err => console.error(err));
+    useEffect(() => {
+        const fetchAll = async () => {
+            try {
+                const prodRes = await fetch('/api/products');
+                if (!prodRes.ok) throw new Error('API unreachable');
+                const prodData = await prodRes.json();
+                setProducts(prodData);
+
+                const homeRes = await fetch('/api/home');
+                if (homeRes.ok) {
+                    const homeData = await homeRes.json();
+                    if (homeData && homeData.title) setHeroContent(homeData);
+                }
+            } catch (err) {
+                console.error(err);
+                setError('Could not connect to the store API.');
+            }
+        };
+        fetchAll();
     }, []);
+
+    if (error) return <div className="min-h-screen bg-bg-base text-red-500 flex flex-col items-center justify-center p-6 text-center">
+        <h2 className="text-2xl font-bold mb-4">Offline Mode</h2>
+        <p>{error}</p>
+        <p className="mt-2 text-sm text-gray-500">Is the backend server running on Render?</p>
+    </div>;
 
     const handleAddToCart = (product) => {
         dispatch(addItem({

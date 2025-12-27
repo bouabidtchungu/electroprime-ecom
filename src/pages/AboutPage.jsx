@@ -2,15 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 const AboutPage = () => {
-    const [content, setContent] = useState(null);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         fetch('/api/about')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('API unreachable');
+                return res.json();
+            })
             .then(data => setContent(data))
-            .catch(err => console.error(err));
+            .catch(err => {
+                console.error(err);
+                setError('Failed to load content. Please check if the server is running.');
+            });
     }, []);
 
+    if (error) return <div className="min-h-screen bg-bg-base text-red-500 flex items-center justify-center p-6 text-center">{error}</div>;
     if (!content) return <div className="min-h-screen bg-bg-base text-white flex items-center justify-center">Loading story...</div>;
 
     const { hero, values, stats } = content;
