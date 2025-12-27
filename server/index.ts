@@ -45,10 +45,24 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// --- Data Store Path ---
-const PRODUCTS_FILE = path.join(__dirname, 'products.json');
+// --- Data Store Paths (using process.cwd for Serverless compatibility) ---
+const DATA_DIR = path.join(process.cwd(), 'server');
+const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
+const ABOUT_FILE = path.join(DATA_DIR, 'about.json');
+const HOME_FILE = path.join(DATA_DIR, 'home.json');
+const FOOTER_FILE = path.join(DATA_DIR, 'footer.json');
+const GLOBAL_FILE = path.join(DATA_DIR, 'global.json');
 
 // --- API Endpoints ---
+
+// Health Check
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'UP',
+        env: process.env.NODE_ENV,
+        cwd: process.cwd()
+    });
+});
 
 // Get all products
 app.get('/api/products', (req, res) => {
@@ -70,7 +84,7 @@ app.get('/api/products', (req, res) => {
 app.post('/api/products', authMiddleware, upload.single('image'), (req, res) => {
     const { title, description, price } = req.body;
     // req.file contains the uploaded file info
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : req.body.imageUrl || '';
+    const imageUrl = (req as any).file ? `/uploads/${(req as any).file.filename}` : req.body.imageUrl || '';
 
     const newProduct = {
         id: Date.now().toString(),
@@ -119,7 +133,7 @@ app.put('/api/products/:id', authMiddleware, upload.single('image'), (req, res) 
             description: description || products[productIndex].description,
             price: price ? parseFloat(price) : products[productIndex].price,
             // If new image uploaded, use it. Otherwise keep old one.
-            image: req.file ? `/uploads/${req.file.filename}` : products[productIndex].image
+            image: (req as any).file ? `/uploads/${(req as any).file.filename}` : products[productIndex].image
         };
 
         products[productIndex] = updatedProduct;
@@ -187,13 +201,10 @@ if (isDevelopment) {
 // UNIVERSAL FALLBACK ROUTE: CRITICAL FOR REACT ROUTER
 // -----------------------------------------------------------
 
-// Determine the path for the index.html file based on the environment
-const indexPath = isDevelopment
-    ? path.join(__dirname, '..', 'build', 'index.html') // Development: Webpack outputs to 'build' (writeToDisk: true)
-    : path.join(__dirname, '..', 'build', 'index.html'); // Production: Files copied to 'build' (served from disk)
+// Determinar index path removed for Vercel functions (handled by rewrites)
+const indexPath = path.join(process.cwd(), 'build', 'index.html');
 
 // --- About Page Content API ---
-const ABOUT_FILE = path.join(__dirname, 'about.json');
 
 // Get About Page Content
 app.get('/api/about', (req, res) => {
@@ -216,7 +227,6 @@ app.post('/api/about', authMiddleware, (req, res) => {
 });
 
 // --- Home Page Content API ---
-const HOME_FILE = path.join(__dirname, 'home.json');
 
 // Get Home Page Content
 app.get('/api/home', (req, res) => {
@@ -239,7 +249,6 @@ app.post('/api/home', authMiddleware, (req, res) => {
 });
 
 // --- Footer Content API ---
-const FOOTER_FILE = path.join(__dirname, 'footer.json');
 
 // Get Footer Content
 app.get('/api/footer', (req, res) => {
@@ -261,7 +270,6 @@ app.post('/api/footer', authMiddleware, (req, res) => {
 });
 
 // --- Global Settings API ---
-const GLOBAL_FILE = path.join(__dirname, 'global.json');
 
 interface GlobalSettings {
     logoText?: string;
@@ -314,8 +322,13 @@ app.get('*', (req, res) => {
     }
 });
 
-// Start the server
-server.listen(PORT, () => {
-    console.log(`\n✅ Server is running in ${process.env.NODE_ENV} mode.`);
-    console.log(`🌐 Application available at http://localhost:${PORT}\n`);
-});
+// Export the app for Vercel serverless
+export default app;
+
+// Start the server only if run directly (development) or if not on Vercel
+if (isDevelopment || process.env.VITE_DEV === 'true') {
+    server.listen(PORT, () => {
+        console.log(`\n✅ Server is running in ${process.env.NODE_ENV} mode.`);
+        console.log(`🌐 Application available at http://localhost:${PORT}\n`);
+    });
+}

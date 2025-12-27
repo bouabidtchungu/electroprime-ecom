@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 const AboutPage = () => {
+    const [content, setContent] = useState(null);
     const [error, setError] = useState(null);
 
     useEffect(() => {

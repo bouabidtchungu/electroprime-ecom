@@ -1,36 +1,28 @@
-# Deployment Guide: ElectroPrime Online
+# Deployment Guide: ElectroPrime (Vercel edition)
 
-To move your website online while keeping the Admin section private, follow these simple steps. I recommend using **Render.com** or **Railway.app** as they are the easiest for this type of "Full Stack" (Node.js + React) application.
+This project is optimized for a **100% Free** deployment on Vercel without requiring a credit card.
 
 ## 1. Prepare for Deployment
 
 - Ensure you have a GitHub repository for your project.
-- Your code is already configured to use environment variables for security.
+- The project is already configured with `vercel.json` and a serverless bridge in `/api`.
 
-## 2. Choosing a Provider (Example: Render.com)
+## 2. Deploying on Vercel
 
-1. **Create an account** on [Render.com](https://render.com).
-2. Click **New +** and select **Web Service**.
-3. Connect your GitHub repository.
-4. Set the following Build/Start commands:
-   - **Build Command**: `npm install && npm run build`
-   - **Start Command**: `npm run start` (ensure your `package.json` has a start script for the server)
-5. **CRITICAL: Set Environment Variables**:
-   - Go to the **Environment** tab on Render.
-   - Add a key `ADMIN_PASSWORD` and set it to your secret password (e.g., `MyUltraSecret123`).
+1. **Create an account** on [Vercel.com](https://vercel.com) using your GitHub account.
+2. Click **Add New** > **Project**.
+3. Import your GitHub repository.
+4. **Environment Variables**:
+   - Expand the **Environment Variables** section.
+   - Add `ADMIN_PASSWORD` (e.g., `MyUltraSecret123`).
    - Add `NODE_ENV` and set it to `production`.
+5. Click **Deploy**.
 
-## 3. Deployment & Private Testing
+## 3. Important Notes for Serverless
 
-- Once deployed, your site will be live at a URL like `my-store.onrender.com`.
-- The main site is public for your customers.
-- **Accessing Admin**: Go to `my-store.onrender.com/admin`. You will be prompted for the password you set in step 2.
+- **Persistence**: Because this is a free serverless deployment, changes made via the Admin Dashboard (like adding products) will be saved to memory/local JSON but will **reset periodically**. For permanent storage, you should connect a free database (like MongoDB Atlas).
+- **Images**: Image uploads are supported for testing, but will also reset periodically. For stable image hosting, use a service like Cloudinary or Imgur.
 
-## 4. Iteration Flow
+## 4. Troubleshooting
 
-- **Modify**: Make changes locally.
-- **Commit**: Push changes to GitHub.
-- **Deploy**: The provider (Render/Railway) will automatically detect the changes and rebuild your site.
-
-> [!TIP]
-> Always test your `ADMIN_PASSWORD` locally first by editing it in the code or a `.env` file before pushing to production!
+If the build fails, ensure you are using the latest version of the code where the `package.json` dependency versions were corrected.

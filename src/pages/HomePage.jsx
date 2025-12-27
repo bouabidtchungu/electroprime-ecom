@@ -41,7 +41,7 @@ const HomePage = () => {
     if (error) return <div className="min-h-screen bg-bg-base text-red-500 flex flex-col items-center justify-center p-6 text-center">
         <h2 className="text-2xl font-bold mb-4">Offline Mode</h2>
         <p>{error}</p>
-        <p className="mt-2 text-sm text-gray-500">Is the backend server running on Render?</p>
+        <p className="mt-2 text-sm text-gray-500">Please check if the backend API is reachable.</p>
     </div>;
 
     const handleAddToCart = (product) => {
