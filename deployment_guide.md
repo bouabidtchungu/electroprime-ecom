@@ -18,10 +18,11 @@ This project is optimized for a **100% Free** deployment on Vercel without requi
    - Add `NODE_ENV` and set it to `production`.
 5. Click **Deploy**.
 
-## 3. Important Notes for Serverless
-
-- **Persistence**: Because this is a free serverless deployment, changes made via the Admin Dashboard (like adding products) will be saved to memory/local JSON but will **reset periodically**. For permanent storage, you should connect a free database (like MongoDB Atlas).
-- **Images**: Image uploads are supported for testing, but will also reset periodically. For stable image hosting, use a service like Cloudinary or Imgur.
+- **Persistence**: This project is now integrated with **MongoDB Atlas** for permanent storage.
+  - You **must** add a new Environment Variable on Vercel: `MONGODB_URI`.
+  - Get a free cluster at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+  - Once connected, all changes made via the Admin Dashboard will be permanent.
+- **Images**: Image uploads are stored locally on the serverless instance and will still reset periodically. For professional use, integrate an external image host (e.g., Cloudinary).
 
 ## 4. Troubleshooting
 

@@ -5,6 +5,16 @@ import bodyParser from 'body-parser';
 import multer from 'multer';
 import fs from 'fs';
 import cors from 'cors';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/electroprime';
+
+mongoose.connect(MONGODB_URI)
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
 // Set port for development or production environment
 const PORT = process.env.PORT || 3001;
@@ -16,7 +26,7 @@ app.use(bodyParser.json());
 
 // --- Admin Security Configuration ---
 // In a real production app, this should be in an environment variable
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || 'admin123').toString();
 
 const authMiddleware = (req: any, res: any, next: any) => {
     const token = req.headers['x-admin-token'];
@@ -45,13 +55,93 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// --- Data Store Paths (using process.cwd for Serverless compatibility) ---
+// --- Mongoose Models ---
+const ProductSchema = new mongoose.Schema({
+    id: String,
+    title: String,
+    description: String,
+    price: Number,
+    image: String
+});
+const Product = mongoose.model('Product', ProductSchema);
+
+const HomeSchema = new mongoose.Schema({
+    title: String,
+    subtitle: String,
+    description: String,
+    cta: String
+}, { strict: false });
+const Home = mongoose.model('Home', HomeSchema);
+
+const AboutSchema = new mongoose.Schema({
+    hero: Object,
+    values: Array,
+    stats: Array
+}, { strict: false });
+const About = mongoose.model('About', AboutSchema);
+
+const FooterSchema = new mongoose.Schema({
+    brandName: String,
+    description: String,
+    contact: Object,
+    copyright: String
+}, { strict: false });
+const Footer = mongoose.model('Footer', FooterSchema);
+
+const GlobalSchema = new mongoose.Schema({
+    logoText: String,
+    logoImage: String,
+    logoAlignment: String,
+    showLogoImage: Boolean
+}, { strict: false });
+const Global = mongoose.model('Global', GlobalSchema);
+
+// --- Data Store Paths (for initial seeding) ---
 const DATA_DIR = path.join(process.cwd(), 'server');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
 const ABOUT_FILE = path.join(DATA_DIR, 'about.json');
 const HOME_FILE = path.join(DATA_DIR, 'home.json');
 const FOOTER_FILE = path.join(DATA_DIR, 'footer.json');
 const GLOBAL_FILE = path.join(DATA_DIR, 'global.json');
+
+// --- Seeding Logic ---
+const seedData = async () => {
+    try {
+        const productCount = await Product.countDocuments();
+        if (productCount === 0 && fs.existsSync(PRODUCTS_FILE)) {
+            const data = JSON.parse(fs.readFileSync(PRODUCTS_FILE, 'utf8'));
+            await Product.insertMany(data);
+            console.log('Seeded products');
+        }
+
+        if (await Home.countDocuments() === 0 && fs.existsSync(HOME_FILE)) {
+            const data = JSON.parse(fs.readFileSync(HOME_FILE, 'utf8'));
+            await Home.create(data);
+            console.log('Seeded home');
+        }
+
+        if (await About.countDocuments() === 0 && fs.existsSync(ABOUT_FILE)) {
+            const data = JSON.parse(fs.readFileSync(ABOUT_FILE, 'utf8'));
+            await About.create(data);
+            console.log('Seeded about');
+        }
+
+        if (await Footer.countDocuments() === 0 && fs.existsSync(FOOTER_FILE)) {
+            const data = JSON.parse(fs.readFileSync(FOOTER_FILE, 'utf8'));
+            await Footer.create(data);
+            console.log('Seeded footer');
+        }
+
+        if (await Global.countDocuments() === 0 && fs.existsSync(GLOBAL_FILE)) {
+            const data = JSON.parse(fs.readFileSync(GLOBAL_FILE, 'utf8'));
+            await Global.create(data);
+            console.log('Seeded global');
+        }
+    } catch (e) {
+        console.error('Seeding error:', e);
+    }
+};
+seedData();
 
 // --- API Endpoints ---
 
@@ -65,102 +155,68 @@ app.get('/api/health', (req, res) => {
 });
 
 // Get all products
-app.get('/api/products', (req, res) => {
-    fs.readFile(PRODUCTS_FILE, 'utf8', (err, data) => {
-        if (err) {
-            // If file doesn't exist, return empty array
-            if (err.code === 'ENOENT') return res.json([]);
-            return res.status(500).json({ error: 'Failed to read products' });
-        }
-        try {
-            res.json(JSON.parse(data));
-        } catch (e) {
-            res.json([]);
-        }
-    });
+app.get('/api/products', async (req, res) => {
+    try {
+        const products = await Product.find();
+        res.json(products);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to fetch products' });
+    }
 });
 
 // Add a product (with image)
-app.post('/api/products', authMiddleware, upload.single('image'), (req, res) => {
-    const { title, description, price } = req.body;
-    // req.file contains the uploaded file info
-    const imageUrl = (req as any).file ? `/uploads/${(req as any).file.filename}` : req.body.imageUrl || '';
+app.post('/api/products', authMiddleware, upload.single('image'), async (req, res) => {
+    try {
+        const { title, description, price } = req.body;
+        const imageUrl = (req as any).file ? `/uploads/${(req as any).file.filename}` : req.body.imageUrl || '';
 
-    const newProduct = {
-        id: Date.now().toString(),
-        title,
-        description,
-        price: parseFloat(price),
-        image: imageUrl
-    };
-
-    fs.readFile(PRODUCTS_FILE, 'utf8', (err, data) => {
-        let products = [];
-        if (!err && data) {
-            try {
-                products = JSON.parse(data);
-            } catch (e) { }
-        }
-        products.push(newProduct);
-
-        fs.writeFile(PRODUCTS_FILE, JSON.stringify(products, null, 2), (err) => {
-            if (err) return res.status(500).json({ error: 'Failed to save product' });
-            res.json(newProduct);
+        const newProduct = new Product({
+            id: Date.now().toString(),
+            title,
+            description,
+            price: parseFloat(price),
+            image: imageUrl
         });
-    });
+
+        await newProduct.save();
+        res.json(newProduct);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to save product' });
+    }
 });
 
 // Update a product
-app.put('/api/products/:id', authMiddleware, upload.single('image'), (req, res) => {
-    const { id } = req.params;
-    const { title, description, price } = req.body;
-
-    fs.readFile(PRODUCTS_FILE, 'utf8', (err, data) => {
-        if (err) return res.status(500).json({ error: 'Failed to read products' });
-
-        let products = [];
-        try {
-            products = JSON.parse(data);
-        } catch (e) { }
-
-        const productIndex = products.findIndex((p: any) => p.id === id);
-        if (productIndex === -1) return res.status(404).json({ error: 'Product not found' });
-
-        // Update fields
-        const updatedProduct = {
-            ...products[productIndex],
-            title: title || products[productIndex].title,
-            description: description || products[productIndex].description,
-            price: price ? parseFloat(price) : products[productIndex].price,
-            // If new image uploaded, use it. Otherwise keep old one.
-            image: (req as any).file ? `/uploads/${(req as any).file.filename}` : products[productIndex].image
+app.put('/api/products/:id', authMiddleware, upload.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, description, price } = req.body;
+        const updateData: any = {
+            title: title || undefined,
+            description: description || undefined,
+            price: price ? parseFloat(price) : undefined
         };
 
-        products[productIndex] = updatedProduct;
+        if ((req as any).file) {
+            updateData.image = `/uploads/${(req as any).file.filename}`;
+        }
 
-        fs.writeFile(PRODUCTS_FILE, JSON.stringify(products, null, 2), (err) => {
-            if (err) return res.status(500).json({ error: 'Failed to update product' });
-            res.json(updatedProduct);
-        });
-    });
+        const updatedProduct = await Product.findOneAndUpdate({ id }, { $set: updateData }, { new: true });
+        if (!updatedProduct) return res.status(404).json({ error: 'Product not found' });
+        res.json(updatedProduct);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to update product' });
+    }
 });
 
 // Delete a product
-app.delete('/api/products/:id', authMiddleware, (req, res) => {
-    const { id } = req.params;
-    fs.readFile(PRODUCTS_FILE, 'utf8', (err, data) => {
-        if (err) return res.status(500).json({ error: 'Failed to read products' });
-        let products = [];
-        try {
-            products = JSON.parse(data);
-        } catch (e) { }
-
-        const filteredProducts = products.filter((p: any) => p.id !== id);
-        fs.writeFile(PRODUCTS_FILE, JSON.stringify(filteredProducts, null, 2), (err) => {
-            if (err) return res.status(500).json({ error: 'Failed to delete product' });
-            res.json({ success: true });
-        });
-    });
+app.delete('/api/products/:id', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Product.findOneAndDelete({ id });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to delete product' });
+    }
 });
 
 
@@ -207,66 +263,70 @@ const indexPath = path.join(process.cwd(), 'build', 'index.html');
 // --- About Page Content API ---
 
 // Get About Page Content
-app.get('/api/about', (req, res) => {
-    fs.readFile(ABOUT_FILE, 'utf8', (err, data) => {
-        if (err) {
-            // If file doesn't exist, return default structure (or could create it)
-            return res.status(500).json({ error: 'Content not found' });
-        }
-        res.json(JSON.parse(data));
-    });
+app.get('/api/about', async (req, res) => {
+    try {
+        const content = await About.findOne();
+        res.json(content);
+    } catch (e) {
+        res.status(500).json({ error: 'Content not found' });
+    }
 });
 
 // Update About Page Content
-app.post('/api/about', authMiddleware, (req, res) => {
-    const newContent = req.body;
-    fs.writeFile(ABOUT_FILE, JSON.stringify(newContent, null, 2), (err) => {
-        if (err) return res.status(500).json({ error: 'Failed to save content' });
+app.post('/api/about', authMiddleware, async (req, res) => {
+    try {
+        const newContent = req.body;
+        await About.findOneAndUpdate({}, newContent, { upsert: true });
         res.json(newContent);
-    });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to save content' });
+    }
 });
 
 // --- Home Page Content API ---
 
 // Get Home Page Content
-app.get('/api/home', (req, res) => {
-    fs.readFile(HOME_FILE, 'utf8', (err, data) => {
-        if (err) {
-            // If file doesn't exist, return default structure (or could create it)
-            return res.status(500).json({ error: 'Content not found' });
-        }
-        res.json(JSON.parse(data));
-    });
+app.get('/api/home', async (req, res) => {
+    try {
+        const content = await Home.findOne();
+        res.json(content);
+    } catch (e) {
+        res.status(500).json({ error: 'Content not found' });
+    }
 });
 
 // Update Home Page Content
-app.post('/api/home', authMiddleware, (req, res) => {
-    const newContent = req.body;
-    fs.writeFile(HOME_FILE, JSON.stringify(newContent, null, 2), (err) => {
-        if (err) return res.status(500).json({ error: 'Failed to save content' });
+app.post('/api/home', authMiddleware, async (req, res) => {
+    try {
+        const newContent = req.body;
+        await Home.findOneAndUpdate({}, newContent, { upsert: true });
         res.json(newContent);
-    });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to save content' });
+    }
 });
 
 // --- Footer Content API ---
 
 // Get Footer Content
-app.get('/api/footer', (req, res) => {
-    fs.readFile(FOOTER_FILE, 'utf8', (err, data) => {
-        if (err) {
-            return res.status(500).json({ error: 'Content not found' });
-        }
-        res.json(JSON.parse(data));
-    });
+app.get('/api/footer', async (req, res) => {
+    try {
+        const content = await Footer.findOne();
+        res.json(content);
+    } catch (e) {
+        res.status(500).json({ error: 'Content not found' });
+    }
 });
 
 // Update Footer Content
-app.post('/api/footer', authMiddleware, (req, res) => {
-    const newContent = req.body;
-    fs.writeFile(FOOTER_FILE, JSON.stringify(newContent, null, 2), (err) => {
-        if (err) return res.status(500).json({ error: 'Failed to save content' });
+app.post('/api/footer', authMiddleware, async (req, res) => {
+    try {
+        const newContent = req.body;
+        await Footer.findOneAndUpdate({}, newContent, { upsert: true });
         res.json(newContent);
-    });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to save content' });
+    }
 });
 
 // --- Global Settings API ---
@@ -279,27 +339,24 @@ interface GlobalSettings {
 }
 
 // Get Global Settings
-app.get('/api/global', (req: any, res: any) => {
-    fs.readFile(GLOBAL_FILE, 'utf8', (err, data) => {
-        if (err) {
-            return res.status(500).json({ error: 'Content not found' });
-        }
-        res.json(JSON.parse(data));
-    });
+app.get('/api/global', async (req, res) => {
+    try {
+        const settings = await Global.findOne();
+        res.json(settings);
+    } catch (e) {
+        res.status(500).json({ error: 'Content not found' });
+    }
 });
 
 // Update Global Settings
-app.post('/api/global', authMiddleware, upload.single('logoImage'), (req: any, res: any) => {
-    fs.readFile(GLOBAL_FILE, 'utf8', (err, data) => {
-        let settings: GlobalSettings = {};
-        try { settings = JSON.parse(data); } catch (e) { }
-
+app.post('/api/global', authMiddleware, upload.single('logoImage'), async (req: any, res: any) => {
+    try {
+        const currentSettings = await Global.findOne() || {};
         const { logoText, logoAlignment, showLogoImage } = req.body;
 
-        const newSettings: GlobalSettings = {
-            ...settings,
-            logoText: logoText || settings.logoText,
-            logoAlignment: logoAlignment || settings.logoAlignment,
+        const newSettings: any = {
+            logoText: logoText || (currentSettings as any).logoText,
+            logoAlignment: logoAlignment || (currentSettings as any).logoAlignment,
             showLogoImage: showLogoImage === 'true' || showLogoImage === true,
         };
 
@@ -307,11 +364,11 @@ app.post('/api/global', authMiddleware, upload.single('logoImage'), (req: any, r
             newSettings.logoImage = `/uploads/${req.file.filename}`;
         }
 
-        fs.writeFile(GLOBAL_FILE, JSON.stringify(newSettings, null, 2), (err) => {
-            if (err) return res.status(500).json({ error: 'Failed to save settings' });
-            res.json(newSettings);
-        });
-    });
+        const updated = await Global.findOneAndUpdate({}, newSettings, { upsert: true, new: true });
+        res.json(updated);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to save settings' });
+    }
 });
 
 // Serve the frontend
