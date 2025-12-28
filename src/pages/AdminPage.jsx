@@ -67,10 +67,16 @@ const AdminPage = () => {
 
     const handleProductSubmit = async (e) => {
         e.preventDefault();
+
+        if (productImage && productImage.size > 4 * 1024 * 1024) {
+            alert('File too large (Max 4MB). Please resize the image before uploading.');
+            return;
+        }
+
         const formData = new FormData();
-        formData.append('title', productForm.title);
-        formData.append('description', productForm.description);
-        formData.append('price', productForm.price);
+        formData.append('title', productForm.title || '');
+        formData.append('description', productForm.description || '');
+        formData.append('price', (productForm.price || 0).toString());
         if (productImage) formData.append('image', productImage);
 
         try {
@@ -82,15 +88,21 @@ const AdminPage = () => {
                 headers: { 'X-Admin-Token': adminToken }
             });
             if (res.status === 401) return handleLogout();
-            if (!res.ok) throw new Error('Failed');
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Server error');
+            }
 
             setProductForm({ id: null, title: '', description: '', price: '' });
             setIsEditingProduct(false);
             setProductImage(null);
-            document.getElementById('file-upload').value = null;
+            const fileInput = document.getElementById('file-upload');
+            if (fileInput) fileInput.value = '';
+
             fetchProducts();
             alert('Product saved successfully!');
-        } catch (err) { alert('Failed to save product'); }
+        } catch (err) { alert('Failed to save: ' + err.message); }
     };
 
     const handleEditProduct = (product) => {
@@ -117,8 +129,11 @@ const AdminPage = () => {
             });
             if (res.status === 401) return handleLogout();
             const data = await res.json();
-            if (data) setAboutContent(data);
-        } catch (err) { console.error('About fetch error:', err); }
+            setAboutContent(data || {});
+        } catch (err) {
+            console.error('About fetch error:', err);
+            setAboutContent({});
+        }
     };
 
     const handleAboutChange = (section, field, value, index = null) => {
@@ -159,8 +174,11 @@ const AdminPage = () => {
             });
             if (res.status === 401) return handleLogout();
             const data = await res.json();
-            if (data) setHomeContent(data);
-        } catch (err) { console.error('Home fetch error:', err); }
+            setHomeContent(data || {});
+        } catch (err) {
+            console.error('Home fetch error:', err);
+            setHomeContent({});
+        }
     };
 
     const handleSaveHome = async (e) => {
@@ -172,11 +190,12 @@ const AdminPage = () => {
                     'Content-Type': 'application/json',
                     'X-Admin-Token': adminToken
                 },
-                body: JSON.stringify(homeContent)
+                body: JSON.stringify(homeContent || {})
             });
             if (res.status === 401) return handleLogout();
+            if (!res.ok) throw new Error('Update failed');
             alert('Home Page updated successfully!');
-        } catch (err) { alert('Failed to save content'); }
+        } catch (err) { alert('Save failed: ' + err.message); }
     };
 
     // --- Footer Content Handlers ---
@@ -187,8 +206,11 @@ const AdminPage = () => {
             });
             if (res.status === 401) return handleLogout();
             const data = await res.json();
-            if (data) setFooterContent(data);
-        } catch (err) { console.error('Footer fetch error:', err); }
+            setFooterContent(data || {});
+        } catch (err) {
+            console.error('Footer fetch error:', err);
+            setFooterContent({});
+        }
     };
 
     const [isSaving, setIsSaving] = useState(false);
@@ -227,11 +249,11 @@ const AdminPage = () => {
                 headers: { 'X-Admin-Token': adminToken }
             });
             if (res.status === 401) return handleLogout();
-            if (!res.ok) throw new Error('Failed to fetch settings');
             const data = await res.json();
-            if (data && data.logoText !== undefined) setGlobalSettings(data);
+            setGlobalSettings(data || {});
         } catch (err) {
-            console.error(err);
+            console.error('Global fetch error:', err);
+            setGlobalSettings({});
         }
     };
 
@@ -255,11 +277,14 @@ const AdminPage = () => {
                 headers: { 'X-Admin-Token': adminToken }
             });
             if (res.status === 401) return handleLogout();
-            if (!res.ok) throw new Error('Failed');
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Failed');
+            }
             const data = await res.json();
             setGlobalSettings(data);
             alert('Settings updated successfully! Please refresh to see changes.');
-        } catch (err) { alert('Failed to save settings'); }
+        } catch (err) { alert('Failed to save settings: ' + err.message); }
         finally { setIsSaving(false); }
     };
 
@@ -535,7 +560,7 @@ const AdminPage = () => {
                                         </div>
                                     </div>
 
-                                    <button onClick={handleSaveAbout} className="w-full bg-tech-secondary hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg transition">Save About Page</button>
+                                    <button type="submit" className="w-full bg-tech-secondary hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg transition">Save About Page</button>
                                 </form>
                             </div>
                         )
@@ -611,7 +636,7 @@ const AdminPage = () => {
                                             <label className="block text-gray-400 text-sm mb-1">Brand Name</label>
                                             <input
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={footerContent.brandName}
+                                                value={footerContent.brandName || ''}
                                                 onChange={e => setFooterContent({ ...footerContent, brandName: e.target.value })}
                                             />
                                         </div>
@@ -620,7 +645,7 @@ const AdminPage = () => {
                                             <textarea
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
                                                 rows="3"
-                                                value={footerContent.description}
+                                                value={footerContent.description || ''}
                                                 onChange={e => setFooterContent({ ...footerContent, description: e.target.value })}
                                             />
                                         </div>
@@ -628,7 +653,7 @@ const AdminPage = () => {
                                             <label className="block text-gray-400 text-sm mb-1">Copyright Text</label>
                                             <input
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={footerContent.copyright}
+                                                value={footerContent.copyright || ''}
                                                 onChange={e => setFooterContent({ ...footerContent, copyright: e.target.value })}
                                             />
                                         </div>
@@ -638,7 +663,7 @@ const AdminPage = () => {
                                             <label className="block text-gray-400 text-sm mb-1">Email</label>
                                             <input
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={footerContent.contact.email}
+                                                value={footerContent.contact?.email || ''}
                                                 onChange={e => setFooterContent({ ...footerContent, contact: { ...footerContent.contact, email: e.target.value } })}
                                             />
                                         </div>
@@ -646,13 +671,13 @@ const AdminPage = () => {
                                             <label className="block text-gray-400 text-sm mb-1">Phone</label>
                                             <input
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={footerContent.contact.phone}
+                                                value={footerContent.contact?.phone || ''}
                                                 onChange={e => setFooterContent({ ...footerContent, contact: { ...footerContent.contact, phone: e.target.value } })}
                                             />
                                         </div>
                                     </div>
                                     <button
-                                        onClick={handleSaveFooter}
+                                        type="submit"
                                         disabled={isSaving}
                                         className={`w-full font-bold py-4 rounded-xl shadow-lg transition ${isSaving ? 'bg-gray-600 cursor-not-allowed' : 'bg-tech-secondary hover:bg-blue-600'} text-white`}
                                     >
@@ -679,7 +704,7 @@ const AdminPage = () => {
                                             <label className="block text-gray-400 text-sm mb-1">Logo Text</label>
                                             <input
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={globalSettings.logoText}
+                                                value={globalSettings.logoText || ''}
                                                 onChange={e => setGlobalSettings({ ...globalSettings, logoText: e.target.value })}
                                             />
                                         </div>

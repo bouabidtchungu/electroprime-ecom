@@ -166,8 +166,8 @@ app.get('/api/global', async (req, res) => {
 app.post('/api/products', authMiddleware, (req, res, next) => {
     upload.single('image')(req, res, (err) => {
         if (err) {
-            console.error('Multer Upload Error:', err);
-            return res.status(400).json({ error: 'Image upload failed: ' + err.message });
+            console.error('❌ Multer Upload Error:', err);
+            return res.status(400).json({ error: 'Image upload failed: ' + err.message + '. Try a smaller image (under 4MB).' });
         }
         next();
     });
@@ -175,19 +175,26 @@ app.post('/api/products', authMiddleware, (req, res, next) => {
     await connectDB();
     try {
         const { title, description, price } = req.body;
+        if (!title || !price) {
+            return res.status(400).json({ error: 'Title and Price are required.' });
+        }
         const imageUrl = (req as any).file ? (req as any).file.path : req.body.imageUrl || '';
         const newItem = new Product({ id: Date.now().toString(), title, description, price: parseFloat(price), image: imageUrl });
         await newItem.save();
+        console.log('✅ Product created:', title);
         res.json(newItem);
     } catch (e: any) {
-        console.error('Product creation error:', e);
-        res.status(500).json({ error: e.message });
+        console.error('❌ Product creation error:', e);
+        res.status(500).json({ error: 'Database error: ' + e.message });
     }
 });
 
 app.put('/api/products/:id', authMiddleware, (req, res, next) => {
     upload.single('image')(req, res, (err) => {
-        if (err) return res.status(400).json({ error: 'Upload failed: ' + err.message });
+        if (err) {
+            console.error('❌ Multer Update Error:', err);
+            return res.status(400).json({ error: 'Upload failed: ' + err.message });
+        }
         next();
     });
 }, async (req, res) => {
@@ -198,17 +205,26 @@ app.put('/api/products/:id', authMiddleware, (req, res, next) => {
         const updateData: any = { title, description, price: price ? parseFloat(price) : undefined };
         if ((req as any).file) updateData.image = (req as any).file.path;
         const updated = await Product.findOneAndUpdate({ id }, { $set: updateData }, { new: true });
+        if (!updated) return res.status(404).json({ error: 'Product not found' });
+        console.log('✅ Product updated:', title);
         res.json(updated);
     } catch (e: any) {
-        console.error('Product update error:', e);
-        res.status(500).json({ error: e.message });
+        console.error('❌ Product update error:', e);
+        res.status(500).json({ error: 'Database update failed: ' + e.message });
     }
 });
 
 app.post('/api/about', authMiddleware, async (req, res) => {
     await connectDB();
-    try { res.json(await About.findOneAndUpdate({}, req.body, { upsert: true, new: true })); }
-    catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+        const updated = await About.findOneAndUpdate({}, req.body, { upsert: true, new: true });
+        console.log('✅ About updated');
+        res.json(updated);
+    }
+    catch (e: any) {
+        console.error('❌ About save error:', e);
+        res.status(500).json({ error: 'Save failed: ' + e.message });
+    }
 });
 
 app.post('/api/home', authMiddleware, async (req, res) => {
