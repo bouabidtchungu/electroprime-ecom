@@ -28,7 +28,9 @@ const DEFAULTS = {
         ],
         stats: [
             { value: '10k+', label: 'Products Sold' },
-            { value: '99%', label: 'Satisfaction' }
+            { value: '99%', label: 'Satisfaction' },
+            { value: '24/7', label: 'Support' },
+            { value: '50+', label: 'Partners' }
         ]
     },
     home: { title: 'Welcome to ElectroPrime', subtitle: 'The Future of Tech', description: 'Your destination for premium electronics and professional gadgets.', cta: 'Shop Collection' },
@@ -42,9 +44,14 @@ const connectDB = async () => {
     if (isConnected && mongoose.connection.readyState === 1) return;
     if (!MONGODB_URI) return;
     try {
-        const db = await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
+        const db = await mongoose.connect(MONGODB_URI, {
+            serverSelectionTimeoutMS: 8000,
+            socketTimeoutMS: 45000,
+            connectTimeoutMS: 10000
+        });
         isConnected = !!db.connections[0].readyState;
-    } catch (err: any) { console.error('❌ DB Error:', err.message); }
+        console.log('✅ Connected to MongoDB');
+    } catch (err: any) { console.error('❌ MongoDB Connection Error:', err.message); }
 };
 
 // --- Cloudinary & Storage ---
@@ -67,12 +74,13 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({
     storage,
-    limits: { fileSize: 5 * 1024 * 1024 } // 5MB Limit
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB Limit
 });
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
 // --- Auth Middleware ---
 const authMiddleware = (req: any, res: any, next: any) => {
@@ -103,7 +111,15 @@ const getJsonData = (file: string, def: any) => {
 // --- API ---
 app.get('/api/health', async (req, res) => {
     await connectDB();
-    res.json({ status: 'UP', db: mongoose.connection.readyState === 1, cloud: cloudinaryConfigured });
+    res.json({
+        status: 'UP',
+        db: mongoose.connection.readyState === 1,
+        cloud: cloudinaryConfigured,
+        env: {
+            URI: !!process.env.MONGODB_URI,
+            CLOUD: !!process.env.CLOUDINARY_CLOUD_NAME
+        }
+    });
 });
 
 app.get('/api/products', async (req, res) => {
@@ -149,7 +165,10 @@ app.get('/api/global', async (req, res) => {
 // --- Mutations ---
 app.post('/api/products', authMiddleware, (req, res, next) => {
     upload.single('image')(req, res, (err) => {
-        if (err) return res.status(400).json({ error: 'Upload failed: ' + err.message });
+        if (err) {
+            console.error('Multer Upload Error:', err);
+            return res.status(400).json({ error: 'Image upload failed: ' + err.message });
+        }
         next();
     });
 }, async (req, res) => {
@@ -160,7 +179,10 @@ app.post('/api/products', authMiddleware, (req, res, next) => {
         const newItem = new Product({ id: Date.now().toString(), title, description, price: parseFloat(price), image: imageUrl });
         await newItem.save();
         res.json(newItem);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) {
+        console.error('Product creation error:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.put('/api/products/:id', authMiddleware, (req, res, next) => {
@@ -177,7 +199,10 @@ app.put('/api/products/:id', authMiddleware, (req, res, next) => {
         if ((req as any).file) updateData.image = (req as any).file.path;
         const updated = await Product.findOneAndUpdate({ id }, { $set: updateData }, { new: true });
         res.json(updated);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) {
+        console.error('Product update error:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/api/about', authMiddleware, async (req, res) => {

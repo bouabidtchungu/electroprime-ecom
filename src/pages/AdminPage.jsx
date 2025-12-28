@@ -116,23 +116,21 @@ const AdminPage = () => {
                 headers: { 'X-Admin-Token': adminToken }
             });
             if (res.status === 401) return handleLogout();
-            if (!res.ok) throw new Error('Failed to fetch content');
             const data = await res.json();
-            if (data && data.hero) setAboutContent(data);
-        } catch (err) {
-            console.error(err);
-        }
+            if (data) setAboutContent(data);
+        } catch (err) { console.error('About fetch error:', err); }
     };
 
     const handleAboutChange = (section, field, value, index = null) => {
         if (!aboutContent) return;
         const newContent = { ...aboutContent };
+        if (!newContent[section]) newContent[section] = (section === 'hero' ? {} : []);
+
         if (section === 'hero') {
             newContent.hero[field] = value;
-        } else if (section === 'values' && index !== null) {
-            newContent.values[index][field] = value;
-        } else if (section === 'stats' && index !== null) {
-            newContent.stats[index][field] = value;
+        } else if ((section === 'values' || section === 'stats') && index !== null) {
+            if (!newContent[section][index]) newContent[section][index] = {};
+            newContent[section][index][field] = value;
         }
         setAboutContent(newContent);
     };
@@ -160,12 +158,9 @@ const AdminPage = () => {
                 headers: { 'X-Admin-Token': adminToken }
             });
             if (res.status === 401) return handleLogout();
-            if (!res.ok) throw new Error('Failed to fetch content');
             const data = await res.json();
-            if (data && data.title) setHomeContent(data);
-        } catch (err) {
-            console.error(err);
-        }
+            if (data) setHomeContent(data);
+        } catch (err) { console.error('Home fetch error:', err); }
     };
 
     const handleSaveHome = async (e) => {
@@ -191,12 +186,9 @@ const AdminPage = () => {
                 headers: { 'X-Admin-Token': adminToken }
             });
             if (res.status === 401) return handleLogout();
-            if (!res.ok) throw new Error('Failed to fetch content');
             const data = await res.json();
-            if (data && data.brandName) setFooterContent(data);
-        } catch (err) {
-            console.error(err);
-        }
+            if (data) setFooterContent(data);
+        } catch (err) { console.error('Footer fetch error:', err); }
     };
 
     const [isSaving, setIsSaving] = useState(false);
