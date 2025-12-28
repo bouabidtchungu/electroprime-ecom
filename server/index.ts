@@ -13,27 +13,35 @@ import { CloudinaryStorage } from 'multer-storage-cloudinary';
 dotenv.config();
 
 // --- Configuration ---
-const MONGODB_URI = process.env.MONGODB_URI; // No default to localhost to avoid hangs
+const MONGODB_URI = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 3001;
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || 'admin123').toString();
 
-// --- MongoDB Connection (Fire and forget, non-blocking) ---
+// --- MongoDB Connection ---
 if (MONGODB_URI) {
+    console.log('🔗 Attempting to connect to MongoDB...');
     mongoose.connect(MONGODB_URI, {
-        serverSelectionTimeoutMS: 2000, // Faster failure for better responsiveness
-        connectTimeoutMS: 5000,
-        bufferCommands: false, // Don't queue queries if not connected
-    }).catch(err => console.error('❌ DB Initial Connection Error:', err.message));
+        serverSelectionTimeoutMS: 3000,
+        connectTimeoutMS: 10000,
+        bufferCommands: false,
+    }).then(() => console.log('✅ Connected to MongoDB'))
+        .catch(err => console.error('❌ MongoDB connection error:', err.message));
 } else {
-    console.warn('⚠️ MONGODB_URI not found. Running in JSON-only mode.');
+    console.warn('⚠️ MONGODB_URI is missing in environment variables.');
 }
 
 // --- Cloudinary ---
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-});
+const cloudinaryConfigured = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+if (cloudinaryConfigured) {
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
+    });
+    console.log('✅ Cloudinary configured successfully.');
+} else {
+    console.error('❌ Cloudinary environment variables are missing!');
+}
 
 const app = express();
 app.use(cors());
@@ -43,10 +51,13 @@ app.use(bodyParser.json());
 const authMiddleware = (req: any, res: any, next: any) => {
     const token = req.headers['x-admin-token'];
     if (token === ADMIN_PASSWORD) next();
-    else res.status(401).json({ error: 'Unauthorized' });
+    else {
+        console.warn('🚫 Unauthorized access attempt blocked.');
+        res.status(401).json({ error: 'Unauthorized' });
+    }
 };
 
-// --- Storage Configuration ---
+// --- Storage (Cloudinary Storage Engine) ---
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: async (req: any, file: any) => ({
@@ -78,10 +89,10 @@ const getSafeJsonPath = (filename: string) => {
 };
 
 const getFallbackData = (filename: string, defaults: any) => {
-    const path = getSafeJsonPath(filename);
-    if (!path) return defaults;
+    const filePath = getSafeJsonPath(filename);
+    if (!filePath) return defaults;
     try {
-        return JSON.parse(fs.readFileSync(path, 'utf8'));
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
     } catch (e) { return defaults; }
 };
 
@@ -90,8 +101,14 @@ const getFallbackData = (filename: string, defaults: any) => {
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'UP',
-        dbMode: MONGODB_URI ? 'Cloud' : 'JSON-Only',
-        dbStatus: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        dbConnected: mongoose.connection.readyState === 1,
+        cloudinaryConfigured: cloudinaryConfigured,
+        checks: {
+            MONGODB_URI: !!MONGODB_URI,
+            CLOUDINARY_CLOUD_NAME: !!process.env.CLOUDINARY_CLOUD_NAME,
+            CLOUDINARY_API_KEY: !!process.env.CLOUDINARY_API_KEY,
+            CLOUDINARY_API_SECRET: !!process.env.CLOUDINARY_API_SECRET
+        },
         time: new Date().toISOString()
     });
 });
@@ -100,48 +117,48 @@ app.get('/api/products', async (req, res) => {
     const fallback = () => getFallbackData('products.json', []);
     if (mongoose.connection.readyState !== 1) return res.json(fallback());
     try {
-        const items = await Product.find().maxTimeMS(1500);
+        const items = await Product.find().maxTimeMS(2000);
         res.json(items.length > 0 ? items : fallback());
     } catch (e) { res.json(fallback()); }
 });
 
 app.get('/api/about', async (req, res) => {
-    const fallback = () => getFallbackData('about.json', { hero: { title: 'Our Story', subtitle: 'ElectroPrime', description: '' }, values: [], stats: [] });
+    const fallback = () => getFallbackData('about.json', { hero: {}, values: [], stats: [] });
     if (mongoose.connection.readyState !== 1) return res.json(fallback());
     try {
-        const data = await About.findOne().maxTimeMS(1500);
+        const data = await About.findOne().maxTimeMS(2000);
         res.json(data || fallback());
     } catch (e) { res.json(fallback()); }
 });
 
 app.get('/api/home', async (req, res) => {
-    const fallback = () => getFallbackData('home.json', { title: 'Welcome', subtitle: '', description: '', cta: 'Explore' });
+    const fallback = () => getFallbackData('home.json', { title: '', subtitle: '', description: '', cta: '' });
     if (mongoose.connection.readyState !== 1) return res.json(fallback());
     try {
-        const data = await Home.findOne().maxTimeMS(1500);
+        const data = await Home.findOne().maxTimeMS(2000);
         res.json(data || fallback());
     } catch (e) { res.json(fallback()); }
 });
 
 app.get('/api/footer', async (req, res) => {
-    const fallback = () => getFallbackData('footer.json', { brandName: 'ElectroPrime', contact: {}, copyright: '', description: '' });
+    const fallback = () => getFallbackData('footer.json', { brandName: '', contact: {}, copyright: '' });
     if (mongoose.connection.readyState !== 1) return res.json(fallback());
     try {
-        const data = await Footer.findOne().maxTimeMS(1500);
+        const data = await Footer.findOne().maxTimeMS(2000);
         res.json(data || fallback());
     } catch (e) { res.json(fallback()); }
 });
 
 app.get('/api/global', async (req, res) => {
-    const fallback = () => getFallbackData('global.json', { logoText: 'ElectroPrime', logoAlignment: 'left', showLogoImage: false });
+    const fallback = () => getFallbackData('global.json', { logoText: 'ElectroPrime', logoAlignment: 'left' });
     if (mongoose.connection.readyState !== 1) return res.json(fallback());
     try {
-        const data = await Global.findOne().maxTimeMS(1500);
+        const data = await Global.findOne().maxTimeMS(2000);
         res.json(data || fallback());
     } catch (e) { res.json(fallback()); }
 });
 
-// --- Mutations (Only MongoDB) ---
+// --- Mutations ---
 
 app.post('/api/products', authMiddleware, upload.single('image'), async (req, res) => {
     try {
@@ -150,7 +167,10 @@ app.post('/api/products', authMiddleware, upload.single('image'), async (req, re
         const newItem = new Product({ id: Date.now().toString(), title, description, price: parseFloat(price), image: imageUrl });
         await newItem.save();
         res.json(newItem);
-    } catch (e) { res.status(500).json({ error: 'Save failed' }); }
+    } catch (e: any) {
+        console.error('❌ Product save error:', e.message);
+        res.status(500).json({ error: e.message || 'Save failed' });
+    }
 });
 
 app.put('/api/products/:id', authMiddleware, upload.single('image'), async (req, res) => {
@@ -161,22 +181,40 @@ app.put('/api/products/:id', authMiddleware, upload.single('image'), async (req,
         if ((req as any).file) updateData.image = (req as any).file.path;
         const updated = await Product.findOneAndUpdate({ id }, { $set: updateData }, { new: true });
         res.json(updated);
-    } catch (e) { res.status(500).json({ error: 'Update failed' }); }
+    } catch (e: any) {
+        console.error('❌ Product update error:', e.message);
+        res.status(500).json({ error: e.message || 'Update failed' });
+    }
 });
 
 app.post('/api/about', authMiddleware, async (req, res) => {
-    try { await About.findOneAndUpdate({}, req.body, { upsert: true }); res.json(req.body); }
-    catch (e) { res.status(500).json({ error: 'Save failed' }); }
+    try {
+        const result = await About.findOneAndUpdate({}, req.body, { upsert: true, new: true });
+        res.json(result);
+    } catch (e: any) {
+        console.error('❌ About save error:', e.message);
+        res.status(500).json({ error: e.message || 'Save failed' });
+    }
 });
 
 app.post('/api/home', authMiddleware, async (req, res) => {
-    try { await Home.findOneAndUpdate({}, req.body, { upsert: true }); res.json(req.body); }
-    catch (e) { res.status(500).json({ error: 'Save failed' }); }
+    try {
+        const result = await Home.findOneAndUpdate({}, req.body, { upsert: true, new: true });
+        res.json(result);
+    } catch (e: any) {
+        console.error('❌ Home save error:', e.message);
+        res.status(500).json({ error: e.message || 'Save failed' });
+    }
 });
 
 app.post('/api/footer', authMiddleware, async (req, res) => {
-    try { await Footer.findOneAndUpdate({}, req.body, { upsert: true }); res.json(req.body); }
-    catch (e) { res.status(500).json({ error: 'Save failed' }); }
+    try {
+        const result = await Footer.findOneAndUpdate({}, req.body, { upsert: true, new: true });
+        res.json(result);
+    } catch (e: any) {
+        console.error('❌ Footer save error:', e.message);
+        res.status(500).json({ error: e.message || 'Save failed' });
+    }
 });
 
 app.post('/api/global', authMiddleware, upload.single('logoImage'), async (req: any, res: any) => {
@@ -186,7 +224,10 @@ app.post('/api/global', authMiddleware, upload.single('logoImage'), async (req: 
         if (req.file) newSettings.logoImage = req.file.path;
         const updated = await Global.findOneAndUpdate({}, newSettings, { upsert: true, new: true });
         res.json(updated);
-    } catch (e) { res.status(500).json({ error: 'Save failed' }); }
+    } catch (e: any) {
+        console.error('❌ Global save error:', e.message);
+        res.status(500).json({ error: e.message || 'Save failed' });
+    }
 });
 
 // --- Serving ---
@@ -194,8 +235,7 @@ const indexPath = path.join(process.cwd(), 'build', 'index.html');
 const isDev = process.env.NODE_ENV === 'development';
 
 if (isDev) {
-    const webpack = require('webpack');
-    const compiler = webpack(require('../webpack.config.js'));
+    const compiler = require('webpack')(require('../webpack.config.js'));
     app.use(require('webpack-dev-middleware')(compiler, { publicPath: '/', writeToDisk: true }));
     app.use(require('webpack-hot-middleware')(compiler));
 } else {
@@ -209,5 +249,5 @@ app.get('*', (req, res) => {
 export default app;
 
 if (isDev || process.env.VITE_DEV === 'true') {
-    createServer(app).listen(PORT, () => console.log(`🚀 Dev server on port ${PORT}`));
+    createServer(app).listen(PORT, () => console.log(`🚀 Server listening on ${PORT}`));
 }
