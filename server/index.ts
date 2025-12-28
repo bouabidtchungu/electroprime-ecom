@@ -12,36 +12,41 @@ import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/electroprime';
+// --- Configuration ---
+const MONGODB_URI = process.env.MONGODB_URI; // No default to localhost to avoid hangs
+const PORT = process.env.PORT || 3001;
+const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || 'admin123').toString();
 
-// --- MongoDB Connection ---
-mongoose.connect(MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000,
-    connectTimeoutMS: 10000,
-}).then(() => console.log('✅ Connected to MongoDB'))
-    .catch(err => console.error('❌ MongoDB connection error:', err.message));
+// --- MongoDB Connection (Fire and forget, non-blocking) ---
+if (MONGODB_URI) {
+    mongoose.connect(MONGODB_URI, {
+        serverSelectionTimeoutMS: 2000, // Faster failure for better responsiveness
+        connectTimeoutMS: 5000,
+        bufferCommands: false, // Don't queue queries if not connected
+    }).catch(err => console.error('❌ DB Initial Connection Error:', err.message));
+} else {
+    console.warn('⚠️ MONGODB_URI not found. Running in JSON-only mode.');
+}
 
-// --- Cloudinary Configuration ---
+// --- Cloudinary ---
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const PORT = process.env.PORT || 3001;
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// --- Admin Security ---
-const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || 'admin123').toString();
+// --- Auth Middleware ---
 const authMiddleware = (req: any, res: any, next: any) => {
     const token = req.headers['x-admin-token'];
     if (token === ADMIN_PASSWORD) next();
     else res.status(401).json({ error: 'Unauthorized' });
 };
 
-// --- Storage ---
+// --- Storage Configuration ---
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: async (req: any, file: any) => ({
@@ -54,18 +59,17 @@ const upload = multer({ storage });
 
 // --- Mongoose Models ---
 const Product = mongoose.model('Product', new mongoose.Schema({ id: String, title: String, description: String, price: Number, image: String }));
-const Home = mongoose.model('Home', new mongoose.Schema({}, { strict: false }));
-const About = mongoose.model('About', new mongoose.Schema({}, { strict: false }));
-const Footer = mongoose.model('Footer', new mongoose.Schema({}, { strict: false }));
-const Global = mongoose.model('Global', new mongoose.Schema({}, { strict: false }));
+const Home = mongoose.model('Home', new mongoose.Schema({ title: String, subtitle: String, description: String, cta: String }, { strict: false }));
+const About = mongoose.model('About', new mongoose.Schema({ hero: Object, values: Array, stats: Array }, { strict: false }));
+const Footer = mongoose.model('Footer', new mongoose.Schema({ brandName: String, contact: Object, copyright: String, description: String }, { strict: false }));
+const Global = mongoose.model('Global', new mongoose.Schema({ logoText: String, logoAlignment: String, showLogoImage: Boolean, logoImage: String }, { strict: false }));
 
-// --- Flexible Pathing for Vercel ---
-// We try process.cwd() first, then fallback to relative from __dirname
+// --- Resilience Helpers ---
 const getSafeJsonPath = (filename: string) => {
     const paths = [
         path.join(process.cwd(), 'server', filename),
-        path.join(__dirname, filename),
-        path.join(__dirname, '..', 'server', filename)
+        path.join(__dirname, '..', 'server', filename),
+        path.join(__dirname, filename)
     ];
     for (const p of paths) {
         if (fs.existsSync(p)) return p;
@@ -73,12 +77,12 @@ const getSafeJsonPath = (filename: string) => {
     return null;
 };
 
-const getJsonData = (file: string, defaultValue: any) => {
-    const filePath = getSafeJsonPath(file);
-    if (!filePath) return defaultValue;
+const getFallbackData = (filename: string, defaults: any) => {
+    const path = getSafeJsonPath(filename);
+    if (!path) return defaults;
     try {
-        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    } catch (e) { return defaultValue; }
+        return JSON.parse(fs.readFileSync(path, 'utf8'));
+    } catch (e) { return defaults; }
 };
 
 // --- API Endpoints ---
@@ -86,54 +90,58 @@ const getJsonData = (file: string, defaultValue: any) => {
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'UP',
-        db: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
-        cwd: process.cwd(),
-        dirname: __dirname,
-        serverDirExists: fs.existsSync(path.join(process.cwd(), 'server'))
+        dbMode: MONGODB_URI ? 'Cloud' : 'JSON-Only',
+        dbStatus: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        time: new Date().toISOString()
     });
 });
 
 app.get('/api/products', async (req, res) => {
+    const fallback = () => getFallbackData('products.json', []);
+    if (mongoose.connection.readyState !== 1) return res.json(fallback());
     try {
-        let items = await Product.find();
-        if (items.length === 0) items = getJsonData('products.json', []);
-        res.json(items);
-    } catch (e) { res.json(getJsonData('products.json', [])); }
+        const items = await Product.find().maxTimeMS(1500);
+        res.json(items.length > 0 ? items : fallback());
+    } catch (e) { res.json(fallback()); }
 });
 
 app.get('/api/about', async (req, res) => {
+    const fallback = () => getFallbackData('about.json', { hero: { title: 'Our Story', subtitle: 'ElectroPrime', description: '' }, values: [], stats: [] });
+    if (mongoose.connection.readyState !== 1) return res.json(fallback());
     try {
-        let data = await About.findOne();
-        if (!data) data = getJsonData('about.json', { hero: {}, values: [], stats: [] });
-        res.json(data);
-    } catch (e) { res.json(getJsonData('about.json', { hero: {}, values: [], stats: [] })); }
+        const data = await About.findOne().maxTimeMS(1500);
+        res.json(data || fallback());
+    } catch (e) { res.json(fallback()); }
 });
 
 app.get('/api/home', async (req, res) => {
+    const fallback = () => getFallbackData('home.json', { title: 'Welcome', subtitle: '', description: '', cta: 'Explore' });
+    if (mongoose.connection.readyState !== 1) return res.json(fallback());
     try {
-        let data = await Home.findOne();
-        if (!data) data = getJsonData('home.json', { title: '', subtitle: '', description: '', cta: '' });
-        res.json(data);
-    } catch (e) { res.json(getJsonData('home.json', { title: '', subtitle: '', description: '', cta: '' })); }
+        const data = await Home.findOne().maxTimeMS(1500);
+        res.json(data || fallback());
+    } catch (e) { res.json(fallback()); }
 });
 
 app.get('/api/footer', async (req, res) => {
+    const fallback = () => getFallbackData('footer.json', { brandName: 'ElectroPrime', contact: {}, copyright: '', description: '' });
+    if (mongoose.connection.readyState !== 1) return res.json(fallback());
     try {
-        let data = await Footer.findOne();
-        if (!data) data = getJsonData('footer.json', { branding: '', contact: {}, copyright: '' });
-        res.json(data);
-    } catch (e) { res.json(getJsonData('footer.json', { branding: '', contact: {}, copyright: '' })); }
+        const data = await Footer.findOne().maxTimeMS(1500);
+        res.json(data || fallback());
+    } catch (e) { res.json(fallback()); }
 });
 
 app.get('/api/global', async (req, res) => {
+    const fallback = () => getFallbackData('global.json', { logoText: 'ElectroPrime', logoAlignment: 'left', showLogoImage: false });
+    if (mongoose.connection.readyState !== 1) return res.json(fallback());
     try {
-        let data = await Global.findOne();
-        if (!data) data = getJsonData('global.json', { logoText: 'ElectroPrime', logoAlignment: 'left', showLogoImage: false });
-        res.json(data);
-    } catch (e) { res.json(getJsonData('global.json', { logoText: 'ElectroPrime', logoAlignment: 'left', showLogoImage: false })); }
+        const data = await Global.findOne().maxTimeMS(1500);
+        res.json(data || fallback());
+    } catch (e) { res.json(fallback()); }
 });
 
-// --- Write Operations ---
+// --- Mutations (Only MongoDB) ---
 
 app.post('/api/products', authMiddleware, upload.single('image'), async (req, res) => {
     try {
@@ -181,12 +189,13 @@ app.post('/api/global', authMiddleware, upload.single('logoImage'), async (req: 
     } catch (e) { res.status(500).json({ error: 'Save failed' }); }
 });
 
-// --- Static & Frontend ---
+// --- Serving ---
 const indexPath = path.join(process.cwd(), 'build', 'index.html');
 const isDev = process.env.NODE_ENV === 'development';
 
 if (isDev) {
-    const compiler = require('webpack')(require('../webpack.config.js'));
+    const webpack = require('webpack');
+    const compiler = webpack(require('../webpack.config.js'));
     app.use(require('webpack-dev-middleware')(compiler, { publicPath: '/', writeToDisk: true }));
     app.use(require('webpack-hot-middleware')(compiler));
 } else {
@@ -200,5 +209,5 @@ app.get('*', (req, res) => {
 export default app;
 
 if (isDev || process.env.VITE_DEV === 'true') {
-    createServer(app).listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
+    createServer(app).listen(PORT, () => console.log(`🚀 Dev server on port ${PORT}`));
 }
