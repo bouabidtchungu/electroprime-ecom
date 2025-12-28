@@ -18,11 +18,8 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/electr
 mongoose.connect(MONGODB_URI, {
     serverSelectionTimeoutMS: 5000,
     connectTimeoutMS: 10000,
-}).then(() => {
-    console.log('✅ Connected to MongoDB');
-}).catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
-});
+}).then(() => console.log('✅ Connected to MongoDB'))
+    .catch(err => console.error('❌ MongoDB connection error:', err.message));
 
 // --- Cloudinary Configuration ---
 cloudinary.config({
@@ -31,11 +28,8 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Set port
 const PORT = process.env.PORT || 3001;
 const app = express();
-const isDevelopment = process.env.NODE_ENV === 'development';
-
 app.use(cors());
 app.use(bodyParser.json());
 
@@ -65,68 +59,89 @@ const About = mongoose.model('About', new mongoose.Schema({}, { strict: false })
 const Footer = mongoose.model('Footer', new mongoose.Schema({}, { strict: false }));
 const Global = mongoose.model('Global', new mongoose.Schema({}, { strict: false }));
 
-// --- Paths ---
-const DATA_DIR = path.join(process.cwd(), 'server');
-const getJsonData = (file: string) => {
-    const filePath = path.join(DATA_DIR, file);
-    return fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf8')) : null;
+// --- Flexible Pathing for Vercel ---
+// We try process.cwd() first, then fallback to relative from __dirname
+const getSafeJsonPath = (filename: string) => {
+    const paths = [
+        path.join(process.cwd(), 'server', filename),
+        path.join(__dirname, filename),
+        path.join(__dirname, '..', 'server', filename)
+    ];
+    for (const p of paths) {
+        if (fs.existsSync(p)) return p;
+    }
+    return null;
 };
 
-// --- API Endpoints with JSON Fallback ---
+const getJsonData = (file: string, defaultValue: any) => {
+    const filePath = getSafeJsonPath(file);
+    if (!filePath) return defaultValue;
+    try {
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch (e) { return defaultValue; }
+};
+
+// --- API Endpoints ---
 
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'UP', db: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected' });
+    res.json({
+        status: 'UP',
+        db: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        cwd: process.cwd(),
+        dirname: __dirname,
+        serverDirExists: fs.existsSync(path.join(process.cwd(), 'server'))
+    });
 });
 
 app.get('/api/products', async (req, res) => {
     try {
-        let products = await Product.find();
-        if (products.length === 0) products = getJsonData('products.json') || [];
-        res.json(products);
-    } catch (e) { res.json(getJsonData('products.json') || []); }
+        let items = await Product.find();
+        if (items.length === 0) items = getJsonData('products.json', []);
+        res.json(items);
+    } catch (e) { res.json(getJsonData('products.json', [])); }
 });
 
 app.get('/api/about', async (req, res) => {
     try {
-        let content = await About.findOne();
-        if (!content) content = getJsonData('about.json');
-        res.json(content);
-    } catch (e) { res.json(getJsonData('about.json')); }
+        let data = await About.findOne();
+        if (!data) data = getJsonData('about.json', { hero: {}, values: [], stats: [] });
+        res.json(data);
+    } catch (e) { res.json(getJsonData('about.json', { hero: {}, values: [], stats: [] })); }
 });
 
 app.get('/api/home', async (req, res) => {
     try {
-        let content = await Home.findOne();
-        if (!content) content = getJsonData('home.json');
-        res.json(content);
-    } catch (e) { res.json(getJsonData('home.json')); }
+        let data = await Home.findOne();
+        if (!data) data = getJsonData('home.json', { title: '', subtitle: '', description: '', cta: '' });
+        res.json(data);
+    } catch (e) { res.json(getJsonData('home.json', { title: '', subtitle: '', description: '', cta: '' })); }
 });
 
 app.get('/api/footer', async (req, res) => {
     try {
-        let content = await Footer.findOne();
-        if (!content) content = getJsonData('footer.json');
-        res.json(content);
-    } catch (e) { res.json(getJsonData('footer.json')); }
+        let data = await Footer.findOne();
+        if (!data) data = getJsonData('footer.json', { branding: '', contact: {}, copyright: '' });
+        res.json(data);
+    } catch (e) { res.json(getJsonData('footer.json', { branding: '', contact: {}, copyright: '' })); }
 });
 
 app.get('/api/global', async (req, res) => {
     try {
-        let settings = await Global.findOne();
-        if (!settings) settings = getJsonData('global.json');
-        res.json(settings);
-    } catch (e) { res.json(getJsonData('global.json')); }
+        let data = await Global.findOne();
+        if (!data) data = getJsonData('global.json', { logoText: 'ElectroPrime', logoAlignment: 'left', showLogoImage: false });
+        res.json(data);
+    } catch (e) { res.json(getJsonData('global.json', { logoText: 'ElectroPrime', logoAlignment: 'left', showLogoImage: false })); }
 });
 
-// --- POST/PUT/DELETE remain Mongoose-only for persistence ---
+// --- Write Operations ---
 
 app.post('/api/products', authMiddleware, upload.single('image'), async (req, res) => {
     try {
         const { title, description, price } = req.body;
         const imageUrl = (req as any).file ? (req as any).file.path : req.body.imageUrl || '';
-        const newProduct = new Product({ id: Date.now().toString(), title, description, price: parseFloat(price), image: imageUrl });
-        await newProduct.save();
-        res.json(newProduct);
+        const newItem = new Product({ id: Date.now().toString(), title, description, price: parseFloat(price), image: imageUrl });
+        await newItem.save();
+        res.json(newItem);
     } catch (e) { res.status(500).json({ error: 'Save failed' }); }
 });
 
@@ -166,13 +181,12 @@ app.post('/api/global', authMiddleware, upload.single('logoImage'), async (req: 
     } catch (e) { res.status(500).json({ error: 'Save failed' }); }
 });
 
-// --- Server & Frontend Fallback ---
-const server = createServer(app);
+// --- Static & Frontend ---
 const indexPath = path.join(process.cwd(), 'build', 'index.html');
+const isDev = process.env.NODE_ENV === 'development';
 
-if (isDevelopment) {
-    const webpack = require('webpack');
-    const compiler = webpack(require('../webpack.config.js'));
+if (isDev) {
+    const compiler = require('webpack')(require('../webpack.config.js'));
     app.use(require('webpack-dev-middleware')(compiler, { publicPath: '/', writeToDisk: true }));
     app.use(require('webpack-hot-middleware')(compiler));
 } else {
@@ -180,11 +194,11 @@ if (isDevelopment) {
 }
 
 app.get('*', (req, res) => {
-    if (isDevelopment || path.extname(req.path).length === 0) res.sendFile(indexPath);
+    if (isDev || path.extname(req.path).length === 0) res.sendFile(indexPath);
 });
 
 export default app;
 
-if (isDevelopment || process.env.VITE_DEV === 'true') {
-    server.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
+if (isDev || process.env.VITE_DEV === 'true') {
+    createServer(app).listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
 }
