@@ -12,9 +12,56 @@ dotenv.config();
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/electroprime';
 
-mongoose.connect(MONGODB_URI)
-    .then(() => console.log('Connected to MongoDB'))
-    .catch(err => console.error('MongoDB connection error:', err));
+// --- Seeding Logic (moved up for reference) ---
+const seedData = async () => {
+    try {
+        console.log('📦 Checking for data migration...');
+        const productCount = await Product.countDocuments();
+        if (productCount === 0 && fs.existsSync(PRODUCTS_FILE)) {
+            const data = JSON.parse(fs.readFileSync(PRODUCTS_FILE, 'utf8'));
+            await Product.insertMany(data);
+            console.log('✅ Seeded products');
+        }
+
+        if (await Home.countDocuments() === 0 && fs.existsSync(HOME_FILE)) {
+            const data = JSON.parse(fs.readFileSync(HOME_FILE, 'utf8'));
+            await Home.create(data);
+            console.log('✅ Seeded home');
+        }
+
+        if (await About.countDocuments() === 0 && fs.existsSync(ABOUT_FILE)) {
+            const data = JSON.parse(fs.readFileSync(ABOUT_FILE, 'utf8'));
+            await About.create(data);
+            console.log('✅ Seeded about');
+        }
+
+        if (await Footer.countDocuments() === 0 && fs.existsSync(FOOTER_FILE)) {
+            const data = JSON.parse(fs.readFileSync(FOOTER_FILE, 'utf8'));
+            await Footer.create(data);
+            console.log('✅ Seeded footer');
+        }
+
+        if (await Global.countDocuments() === 0 && fs.existsSync(GLOBAL_FILE)) {
+            const data = JSON.parse(fs.readFileSync(GLOBAL_FILE, 'utf8'));
+            await Global.create(data);
+            console.log('✅ Seeded global');
+        }
+    } catch (e) {
+        console.error('❌ Seeding error:', e);
+    }
+};
+
+// --- MongoDB Connection (Non-blocking) ---
+mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 10000,
+}).then(() => {
+    console.log('✅ Connected to MongoDB');
+    seedData();
+}).catch(err => {
+    console.error('❌ MongoDB connection error:', err.message);
+    console.log('⚠️ Running in degraded mode (DB disconnected)');
+});
 
 // Set port for development or production environment
 const PORT = process.env.PORT || 3001;
@@ -25,7 +72,6 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // --- Admin Security Configuration ---
-// In a real production app, this should be in an environment variable
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || 'admin123').toString();
 
 const authMiddleware = (req: any, res: any, next: any) => {
@@ -96,52 +142,13 @@ const GlobalSchema = new mongoose.Schema({
 }, { strict: false });
 const Global = mongoose.model('Global', GlobalSchema);
 
-// --- Data Store Paths (for initial seeding) ---
+// --- Data Store Paths ---
 const DATA_DIR = path.join(process.cwd(), 'server');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
 const ABOUT_FILE = path.join(DATA_DIR, 'about.json');
 const HOME_FILE = path.join(DATA_DIR, 'home.json');
 const FOOTER_FILE = path.join(DATA_DIR, 'footer.json');
 const GLOBAL_FILE = path.join(DATA_DIR, 'global.json');
-
-// --- Seeding Logic ---
-const seedData = async () => {
-    try {
-        const productCount = await Product.countDocuments();
-        if (productCount === 0 && fs.existsSync(PRODUCTS_FILE)) {
-            const data = JSON.parse(fs.readFileSync(PRODUCTS_FILE, 'utf8'));
-            await Product.insertMany(data);
-            console.log('Seeded products');
-        }
-
-        if (await Home.countDocuments() === 0 && fs.existsSync(HOME_FILE)) {
-            const data = JSON.parse(fs.readFileSync(HOME_FILE, 'utf8'));
-            await Home.create(data);
-            console.log('Seeded home');
-        }
-
-        if (await About.countDocuments() === 0 && fs.existsSync(ABOUT_FILE)) {
-            const data = JSON.parse(fs.readFileSync(ABOUT_FILE, 'utf8'));
-            await About.create(data);
-            console.log('Seeded about');
-        }
-
-        if (await Footer.countDocuments() === 0 && fs.existsSync(FOOTER_FILE)) {
-            const data = JSON.parse(fs.readFileSync(FOOTER_FILE, 'utf8'));
-            await Footer.create(data);
-            console.log('Seeded footer');
-        }
-
-        if (await Global.countDocuments() === 0 && fs.existsSync(GLOBAL_FILE)) {
-            const data = JSON.parse(fs.readFileSync(GLOBAL_FILE, 'utf8'));
-            await Global.create(data);
-            console.log('Seeded global');
-        }
-    } catch (e) {
-        console.error('Seeding error:', e);
-    }
-};
-seedData();
 
 // --- API Endpoints ---
 
@@ -150,7 +157,8 @@ app.get('/api/health', (req, res) => {
     res.json({
         status: 'UP',
         env: process.env.NODE_ENV,
-        cwd: process.cwd()
+        dbStatus: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        mongoUriPreview: MONGODB_URI.split('@')[1] ? '***@' + MONGODB_URI.split('@')[1] : 'Localhost/Other'
     });
 });
 
@@ -219,50 +227,8 @@ app.delete('/api/products/:id', authMiddleware, async (req, res) => {
     }
 });
 
+// --- Content APIs ---
 
-// Create and start the HTTP server
-const server = createServer(app);
-
-// --- Development Setup ---
-if (isDevelopment) {
-    // Note: We use require here because these modules are only needed in development and shouldn't be bundled in production.
-    const webpack = require('webpack');
-    const webpackDevMiddleware = require('webpack-dev-middleware');
-    const webpackHotMiddleware = require('webpack-hot-middleware');
-    const config = require('../webpack.config.js');
-    const compiler = webpack(config);
-
-    app.use(
-        webpackDevMiddleware(compiler, {
-            publicPath: config.output.publicPath,
-            writeToDisk: true,
-        })
-    );
-    app.use(webpackHotMiddleware(compiler));
-
-    compiler.hooks.done.tap('StartServer', () => {
-        // Logging for a clean start
-    });
-
-} else {
-    // --- Production Setup ---
-
-    // Static File Serving (from disk)
-    app.use(express.static(path.resolve(__dirname, '..', 'build')));
-
-    // Note: The universal fallback route handles the catch-all for production now.
-}
-
-// -----------------------------------------------------------
-// UNIVERSAL FALLBACK ROUTE: CRITICAL FOR REACT ROUTER
-// -----------------------------------------------------------
-
-// Determinar index path removed for Vercel functions (handled by rewrites)
-const indexPath = path.join(process.cwd(), 'build', 'index.html');
-
-// --- About Page Content API ---
-
-// Get About Page Content
 app.get('/api/about', async (req, res) => {
     try {
         const content = await About.findOne();
@@ -272,7 +238,6 @@ app.get('/api/about', async (req, res) => {
     }
 });
 
-// Update About Page Content
 app.post('/api/about', authMiddleware, async (req, res) => {
     try {
         const newContent = req.body;
@@ -283,9 +248,6 @@ app.post('/api/about', authMiddleware, async (req, res) => {
     }
 });
 
-// --- Home Page Content API ---
-
-// Get Home Page Content
 app.get('/api/home', async (req, res) => {
     try {
         const content = await Home.findOne();
@@ -295,7 +257,6 @@ app.get('/api/home', async (req, res) => {
     }
 });
 
-// Update Home Page Content
 app.post('/api/home', authMiddleware, async (req, res) => {
     try {
         const newContent = req.body;
@@ -306,9 +267,6 @@ app.post('/api/home', authMiddleware, async (req, res) => {
     }
 });
 
-// --- Footer Content API ---
-
-// Get Footer Content
 app.get('/api/footer', async (req, res) => {
     try {
         const content = await Footer.findOne();
@@ -318,7 +276,6 @@ app.get('/api/footer', async (req, res) => {
     }
 });
 
-// Update Footer Content
 app.post('/api/footer', authMiddleware, async (req, res) => {
     try {
         const newContent = req.body;
@@ -329,16 +286,6 @@ app.post('/api/footer', authMiddleware, async (req, res) => {
     }
 });
 
-// --- Global Settings API ---
-
-interface GlobalSettings {
-    logoText?: string;
-    logoImage?: string;
-    logoAlignment?: string;
-    showLogoImage?: boolean;
-}
-
-// Get Global Settings
 app.get('/api/global', async (req, res) => {
     try {
         const settings = await Global.findOne();
@@ -348,7 +295,6 @@ app.get('/api/global', async (req, res) => {
     }
 });
 
-// Update Global Settings
 app.post('/api/global', authMiddleware, upload.single('logoImage'), async (req: any, res: any) => {
     try {
         const currentSettings = await Global.findOne() || {};
@@ -371,18 +317,33 @@ app.post('/api/global', authMiddleware, upload.single('logoImage'), async (req: 
     }
 });
 
-// Serve the frontend
+const server = createServer(app);
+const indexPath = path.join(process.cwd(), 'build', 'index.html');
+
+if (isDevelopment) {
+    const webpack = require('webpack');
+    const webpackDevMiddleware = require('webpack-dev-middleware');
+    const webpackHotMiddleware = require('webpack-hot-middleware');
+    const config = require('../webpack.config.js');
+    const compiler = webpack(config);
+
+    app.use(webpackDevMiddleware(compiler, {
+        publicPath: config.output.publicPath,
+        writeToDisk: true,
+    }));
+    app.use(webpackHotMiddleware(compiler));
+} else {
+    app.use(express.static(path.resolve(__dirname, '..', 'build')));
+}
+
 app.get('*', (req, res) => {
-    // Ensure the index.html exists before attempting to send it
     if (isDevelopment || path.extname(req.path).length === 0) {
         res.sendFile(indexPath);
     }
 });
 
-// Export the app for Vercel serverless
 export default app;
 
-// Start the server only if run directly (development) or if not on Vercel
 if (isDevelopment || process.env.VITE_DEV === 'true') {
     server.listen(PORT, () => {
         console.log(`\n✅ Server is running in ${process.env.NODE_ENV} mode.`);
