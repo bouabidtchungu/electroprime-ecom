@@ -473,7 +473,7 @@ const AdminPage = () => {
                                             <label className="block text-gray-400 text-sm mb-1">Main Heading</label>
                                             <input
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={aboutContent.hero.title}
+                                                value={aboutContent.hero?.title || ''}
                                                 onChange={e => handleAboutChange('hero', 'title', e.target.value)}
                                             />
                                         </div>
@@ -481,7 +481,7 @@ const AdminPage = () => {
                                             <label className="block text-gray-400 text-sm mb-1">Subtitle</label>
                                             <input
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={aboutContent.hero.subtitle}
+                                                value={aboutContent.hero?.subtitle || ''}
                                                 onChange={e => handleAboutChange('hero', 'subtitle', e.target.value)}
                                             />
                                         </div>
@@ -490,7 +490,7 @@ const AdminPage = () => {
                                             <textarea
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
                                                 rows="3"
-                                                value={aboutContent.hero.description}
+                                                value={aboutContent.hero?.description || ''}
                                                 onChange={e => handleAboutChange('hero', 'description', e.target.value)}
                                             />
                                         </div>
@@ -499,20 +499,20 @@ const AdminPage = () => {
                                     {/* Values Section */}
                                     <div className="space-y-4">
                                         <h3 className="text-xl text-tech-primary font-bold">2. Our Values (3 Columns)</h3>
-                                        {aboutContent.values.map((val, idx) => (
+                                        {(aboutContent.values || []).map((val, idx) => (
                                             <div key={idx} className="p-4 border border-gray-700 rounded-xl bg-gray-800/30">
                                                 <h4 className="text-white font-semibold mb-2">Value #{idx + 1}</h4>
                                                 <input
                                                     className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white mb-2 outline-none focus:border-tech-primary"
                                                     placeholder="Title (e.g. Innovation First)"
-                                                    value={val.title}
+                                                    value={val.title || ''}
                                                     onChange={e => handleAboutChange('values', 'title', e.target.value, idx)}
                                                 />
                                                 <textarea
                                                     className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
                                                     rows="2"
                                                     placeholder="Description"
-                                                    value={val.description}
+                                                    value={val.description || ''}
                                                     onChange={e => handleAboutChange('values', 'description', e.target.value, idx)}
                                                 />
                                             </div>
@@ -523,19 +523,19 @@ const AdminPage = () => {
                                     <div className="space-y-4">
                                         <h3 className="text-xl text-tech-primary font-bold">3. Key Stats</h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {aboutContent.stats.map((stat, idx) => (
+                                            {(aboutContent.stats || []).map((stat, idx) => (
                                                 <div key={idx} className="p-4 border border-gray-700 rounded-xl bg-gray-800/30">
                                                     <h4 className="text-white font-semibold mb-2">Stat #{idx + 1}</h4>
                                                     <input
                                                         className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white mb-2 outline-none focus:border-tech-primary"
                                                         placeholder="Value (e.g. 10k+)"
-                                                        value={stat.value}
+                                                        value={stat.value || ''}
                                                         onChange={e => handleAboutChange('stats', 'value', e.target.value, idx)}
                                                     />
                                                     <input
                                                         className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
                                                         placeholder="Label (e.g. Products Sold)"
-                                                        value={stat.label}
+                                                        value={stat.label || ''}
                                                         onChange={e => handleAboutChange('stats', 'label', e.target.value, idx)}
                                                     />
                                                 </div>
@@ -566,7 +566,7 @@ const AdminPage = () => {
                                             <label className="block text-gray-400 text-sm mb-1">Title</label>
                                             <input
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={homeContent.title}
+                                                value={homeContent.title || ''}
                                                 onChange={e => setHomeContent({ ...homeContent, title: e.target.value })}
                                             />
                                         </div>
@@ -574,7 +574,7 @@ const AdminPage = () => {
                                             <label className="block text-gray-400 text-sm mb-1">Subtitle</label>
                                             <input
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={homeContent.subtitle}
+                                                value={homeContent.subtitle || ''}
                                                 onChange={e => setHomeContent({ ...homeContent, subtitle: e.target.value })}
                                             />
                                         </div>
@@ -583,7 +583,7 @@ const AdminPage = () => {
                                             <textarea
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
                                                 rows="3"
-                                                value={homeContent.description}
+                                                value={homeContent.description || ''}
                                                 onChange={e => setHomeContent({ ...homeContent, description: e.target.value })}
                                             />
                                         </div>
@@ -591,7 +591,7 @@ const AdminPage = () => {
                                             <label className="block text-gray-400 text-sm mb-1">CTA Button Text</label>
                                             <input
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={homeContent.cta}
+                                                value={homeContent.cta || ''}
                                                 onChange={e => setHomeContent({ ...homeContent, cta: e.target.value })}
                                             />
                                         </div>
