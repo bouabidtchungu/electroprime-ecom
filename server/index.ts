@@ -17,7 +17,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 3001;
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || 'admin123').toString();
 
-// --- MongoDB Connection ---
+// --- MongoDB Connection (Non-blocking) ---
 if (MONGODB_URI) {
     console.log('🔗 Attempting to connect to MongoDB...');
     mongoose.connect(MONGODB_URI, {
@@ -27,7 +27,7 @@ if (MONGODB_URI) {
     }).then(() => console.log('✅ Connected to MongoDB'))
         .catch(err => console.error('❌ MongoDB connection error:', err.message));
 } else {
-    console.warn('⚠️ MONGODB_URI is missing in environment variables.');
+    console.warn('⚠️ MONGODB_URI is missing. Running in JSON-only mode.');
 }
 
 // --- Cloudinary ---
@@ -97,7 +97,6 @@ const getFallbackData = (filename: string, defaults: any) => {
 };
 
 // --- API Endpoints ---
-
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'UP',
@@ -159,7 +158,6 @@ app.get('/api/global', async (req, res) => {
 });
 
 // --- Mutations ---
-
 app.post('/api/products', authMiddleware, upload.single('image'), async (req, res) => {
     try {
         const { title, description, price } = req.body;
