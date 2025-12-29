@@ -100,11 +100,18 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '5MB' }));
 // --- Auth Middleware ---
 const authMiddleware = (req: any, res: any, next: any) => {
     const token = req.headers['x-admin-token'];
-    if (token === ADMIN_PASSWORD.trim()) {
+    const expected = ADMIN_PASSWORD.trim();
+
+    if (token === expected) {
         next();
     } else {
-        console.warn('❌ Unauthorized access attempt. Correct password starts with:', ADMIN_PASSWORD.substring(0, 2));
-        res.status(401).json({ error: 'Unauthorized' });
+        console.warn(`❌ Auth Failed [${req.method} ${req.url}]`);
+        console.warn(`   Received: ${token ? `'${token.substring(0, 1)}...${token.substring(token.length - 1)}' (len: ${token.length})` : 'MISSING'}`);
+        console.warn(`   Expected: '${expected.substring(0, 1)}...${expected.substring(expected.length - 1)}' (len: ${expected.length})`);
+        res.status(401).json({
+            error: 'Unauthorized',
+            details: token ? 'Password mismatch' : 'Token header missing'
+        });
     }
 };
 
@@ -140,7 +147,9 @@ app.get('/api/health', async (req, res) => {
             has_mongo: !!process.env.MONGODB_URI,
             has_cloud_name: !!process.env.CLOUDINARY_CLOUD_NAME,
             has_api_key: !!process.env.CLOUDINARY_API_KEY,
-            has_api_secret: !!process.env.CLOUDINARY_API_SECRET?.substring(0, 4) + '***'
+            has_api_secret: !!process.env.CLOUDINARY_API_SECRET?.substring(0, 4) + '***',
+            password_len: (process.env.ADMIN_PASSWORD || '').length,
+            password_starts_with: (process.env.ADMIN_PASSWORD || '').substring(0, 2)
         }
     });
 });
