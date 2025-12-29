@@ -88,13 +88,13 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({
     storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB Limit
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB Limit - Vercel is 4.5MB total
 });
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+app.use(bodyParser.json({ limit: '5MB' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '5MB' }));
 
 // --- Auth Middleware ---
 const authMiddleware = (req: any, res: any, next: any) => {
@@ -188,7 +188,9 @@ app.post('/api/products', authMiddleware, (req: any, res: any, next: any) => {
     upload.single('image')(req, res, (err: any) => {
         if (err) {
             console.error('❌ Multer Upload Error:', err);
-            return res.status(400).json({ error: 'Image upload failed: ' + err.message + '. Vercel limits files to ~4MB.' });
+            let message = 'Image upload failed';
+            if (err.code === 'LIMIT_FILE_SIZE') message = 'File too large. Vercel limits uploads to 4.5MB.';
+            return res.status(400).json({ error: message + ': ' + (err.message || '') });
         }
         next();
     });

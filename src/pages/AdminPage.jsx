@@ -59,6 +59,49 @@ const AdminPage = () => {
         setPasswordInput('');
     };
 
+    // --- Image Compression Helper ---
+    const compressImage = (file) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_SIZE = 1200;
+
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        const compressedFile = new File([blob], file.name, {
+                            type: 'image/jpeg',
+                            lastModified: Date.now(),
+                        });
+                        resolve(compressedFile);
+                    }, 'image/jpeg', 0.7); // 70% quality
+                };
+            };
+        });
+    };
+
     // --- Product Handlers ---
     const fetchProducts = async () => {
         const controller = new AbortController();
@@ -81,17 +124,19 @@ const AdminPage = () => {
 
     const handleProductSubmit = async (e) => {
         e.preventDefault();
+        setIsSaving(true); // Prevent double submission
 
-        if (productImage && productImage.size > 4 * 1024 * 1024) {
-            alert('File too large (Max 4MB). Please resize the image before uploading.');
-            return;
+        let finalImage = productImage;
+        if (productImage) {
+            finalImage = await compressImage(productImage);
+            console.log(`Original: ${(productImage.size / 1024).toFixed(2)}KB, Compressed: ${(finalImage.size / 1024).toFixed(2)}KB`);
         }
 
         const formData = new FormData();
         formData.append('title', productForm.title || '');
         formData.append('description', productForm.description || '');
         formData.append('price', (productForm.price || 0).toString());
-        if (productImage) formData.append('image', productImage);
+        if (finalImage) formData.append('image', finalImage);
 
         try {
             const url = isEditingProduct ? `/api/products/${productForm.id}` : '/api/products';
@@ -117,6 +162,7 @@ const AdminPage = () => {
             fetchProducts();
             alert('Product saved successfully!');
         } catch (err) { alert('Failed to save: ' + err.message); }
+        finally { setIsSaving(false); }
     };
 
     const handleEditProduct = (product) => {
@@ -300,7 +346,8 @@ const AdminPage = () => {
 
         const logoFileInput = document.getElementById('logo-upload');
         if (logoFileInput && logoFileInput.files[0]) {
-            formData.append('logoImage', logoFileInput.files[0]);
+            const compressedLogo = await compressImage(logoFileInput.files[0]);
+            formData.append('logoImage', compressedLogo);
         }
 
         try {
