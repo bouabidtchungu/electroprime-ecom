@@ -179,12 +179,29 @@ const AdminPage = () => {
 
     const handleDeleteProduct = async (id) => {
         if (!window.confirm('Delete this product?')) return;
-        const res = await fetch(`/api/products/${id}`, {
-            method: 'DELETE',
-            headers: { 'X-Admin-Token': adminToken }
-        });
-        if (res.status === 401) return handleLogout();
-        fetchProducts();
+        try {
+            const res = await fetch(`/api/products/${id}`, {
+                method: 'DELETE',
+                headers: { 'X-Admin-Token': adminToken }
+            });
+            if (res.status === 401) return handleLogout();
+            if (!res.ok) throw new Error('Delete failed');
+            fetchProducts();
+        } catch (err) { alert('Delete failed: ' + err.message); }
+    };
+
+    const handleClearAll = async () => {
+        if (!window.confirm('WARNING: This will delete ALL products from the database. Are you sure?')) return;
+        try {
+            const res = await fetch('/api/products-clear-all', {
+                method: 'POST',
+                headers: { 'X-Admin-Token': adminToken }
+            });
+            if (res.status === 401) return handleLogout();
+            if (!res.ok) throw new Error('Clear failed');
+            fetchProducts();
+            alert('Inventory cleared!');
+        } catch (err) { alert('Clear failed: ' + err.message); }
     };
 
     // --- About Content Handlers ---
@@ -511,7 +528,17 @@ const AdminPage = () => {
                     </div>
 
                     <div className="bg-gray-900 p-8 rounded-3xl shadow-xl border border-gray-800">
-                        <h2 className="text-2xl font-bold mb-6 text-white">Inventory</h2>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-white">Inventory</h2>
+                            {products.length > 0 && (
+                                <button
+                                    onClick={handleClearAll}
+                                    className="px-3 py-1 bg-red-900/30 text-red-400 border border-red-800/50 rounded-lg text-xs font-bold hover:bg-red-800 hover:text-white transition"
+                                >
+                                    Clear All
+                                </button>
+                            )}
+                        </div>
                         <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                             {products.map(p => (
                                 <div

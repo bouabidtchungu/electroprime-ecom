@@ -240,6 +240,28 @@ app.put('/api/products/:id', authMiddleware, (req, res, next) => {
     }
 });
 
+app.delete('/api/products/:id', authMiddleware, async (req, res) => {
+    await connectDB();
+    try {
+        await Product.deleteOne({ id: req.params.id });
+        console.log('🗑️ Product deleted:', req.params.id);
+        res.json({ success: true });
+    } catch (e: any) {
+        res.status(500).json({ error: 'Delete failed: ' + e.message });
+    }
+});
+
+app.post('/api/products-clear-all', authMiddleware, async (req, res) => {
+    await connectDB();
+    try {
+        await Product.deleteMany({});
+        console.log('🧹 All products cleared from DB');
+        res.json({ success: true });
+    } catch (e: any) {
+        res.status(500).json({ error: 'Clear failed: ' + e.message });
+    }
+});
+
 app.post('/api/about', authMiddleware, async (req, res) => {
     await connectDB();
     try {
