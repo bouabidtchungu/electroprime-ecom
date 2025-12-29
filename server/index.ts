@@ -103,7 +103,7 @@ const authMiddleware = (req: any, res: any, next: any) => {
 };
 
 // --- Models ---
-const Product = mongoose.model('Product', new mongoose.Schema({ id: String, title: String, description: String, price: Number, image: String }));
+const Product = mongoose.model('Product', new mongoose.Schema({ id: { type: String, required: true, index: true }, title: String, description: String, price: Number, image: String }));
 const Home = mongoose.model('Home', new mongoose.Schema({}, { strict: false }));
 const About = mongoose.model('About', new mongoose.Schema({}, { strict: false }));
 const Footer = mongoose.model('Footer', new mongoose.Schema({}, { strict: false }));
@@ -205,7 +205,7 @@ app.post('/api/products', authMiddleware, (req: any, res: any, next: any) => {
             return res.status(400).json({ error: 'Title and Price are required.' });
         }
         const imageUrl = (req as any).file ? (req as any).file.path : req.body.imageUrl || '';
-        const newItem = new Product({ id: Date.now().toString(), title, description, price: parseFloat(price), image: imageUrl });
+        const newItem = new Product({ id: String(Date.now()), title, description, price: parseFloat(price), image: imageUrl });
         await newItem.save();
         console.log('✅ Product created:', title);
         res.json(newItem);
@@ -243,10 +243,15 @@ app.put('/api/products/:id', authMiddleware, (req, res, next) => {
 app.delete('/api/products/:id', authMiddleware, async (req, res) => {
     await connectDB();
     try {
-        await Product.deleteOne({ id: req.params.id });
-        console.log('🗑️ Product deleted:', req.params.id);
-        res.json({ success: true });
+        const { id } = req.params;
+        // Try deleting as string and as number just in case
+        const deleted = await Product.deleteOne({
+            $or: [{ id: id }, { id: parseFloat(id) || id }]
+        });
+        console.log('🗑️ Product deleted attempt:', id, deleted.deletedCount);
+        res.json({ success: true, deletedCount: deleted.deletedCount });
     } catch (e: any) {
+        console.error('❌ Delete error:', e);
         res.status(500).json({ error: 'Delete failed: ' + e.message });
     }
 });
