@@ -134,6 +134,12 @@ const getJsonData = (file: string, def: any) => {
     try { return JSON.parse(fs.readFileSync(p, 'utf8')); }
     catch (e) { return def; }
 };
+const saveJsonData = (file: string, data: any) => {
+    try {
+        const p = path.join(process.cwd(), 'server', file);
+        fs.writeFileSync(p, JSON.stringify(data, null, 2));
+    } catch (e) { console.error(`Failed to save ${file}:`, e); }
+};
 
 // --- API ---
 app.get('/api/health', async (req, res) => {
@@ -157,9 +163,15 @@ app.get('/api/health', async (req, res) => {
 app.get('/api/products', async (req, res) => {
     await connectDB();
     try {
-        const items = await Product.find().maxTimeMS(2000).lean();
-        res.json(items && items.length > 0 ? items : getJsonData('products.json', []));
-    } catch (e) { res.json(getJsonData('products.json', [])); }
+        const products = await Product.find().maxTimeMS(2000);
+        if (products.length > 0) {
+            console.log('🔍 Diagnostic: Product Keys:', Object.keys(products[0].toObject()));
+            console.log('🔍 Diagnostic: First Product ID:', products[0].id, '(_id:', (products[0] as any)._id, ')');
+        }
+        res.json(products);
+    } catch (e: any) {
+        res.json(getJsonData('products.json', []));
+    }
 });
 
 app.get('/api/about', async (req, res) => {
@@ -257,25 +269,39 @@ app.put('/api/products/:id', authMiddleware, (req, res, next) => {
 
 app.delete('/api/products/:id', authMiddleware, async (req, res) => {
     await connectDB();
+    const { id } = req.params;
+    let foundInDB = false;
+    let foundInJson = false;
+
     try {
-        const { id } = req.params;
-        // Try deleting as string and as number just in case
-        const deleted = await Product.deleteOne({
-            $or: [{ id: id }, { id: parseFloat(id) || id }]
-        });
-        console.log('🗑️ Product deleted attempt:', id, deleted.deletedCount);
-        res.json({ success: true, deletedCount: deleted.deletedCount });
-    } catch (e: any) {
-        console.error('❌ Delete error:', e);
-        res.status(500).json({ error: 'Delete failed: ' + e.message });
-    }
+        const query: any = { $or: [{ id: id }, { id: parseFloat(id) || id }] };
+        // Add _id check if it looks like a valid MongoDB ObjectId (24 hex chars)
+        if (id.match(/^[0-9a-fA-F]{24}$/)) query.$or.push({ _id: id });
+
+        const deleted = await Product.deleteOne(query);
+        if (deleted.deletedCount > 0) foundInDB = true;
+    } catch (e) { console.error('DB Delete failed:', e); }
+
+    // Also remove from JSON fallback to prevent it reappearing
+    try {
+        const products = getJsonData('products.json', []);
+        const filtered = products.filter((p: any) => p.id !== id && String(p.id) !== id);
+        if (filtered.length !== products.length) {
+            saveJsonData('products.json', filtered);
+            foundInJson = true;
+        }
+    } catch (e) { console.error('JSON Delete failed:', e); }
+
+    console.log(`🗑️ Deletion attempt [${id}]: DB=${foundInDB}, JSON=${foundInJson}`);
+    res.json({ success: foundInDB || foundInJson });
 });
 
 app.post('/api/products-clear-all', authMiddleware, async (req, res) => {
     await connectDB();
     try {
         await Product.deleteMany({});
-        console.log('🧹 All products cleared from DB');
+        saveJsonData('products.json', []); // Empty the JSON fallback too
+        console.log('🧹 All products cleared from DB and JSON');
         res.json({ success: true });
     } catch (e: any) {
         res.status(500).json({ error: 'Clear failed: ' + e.message });

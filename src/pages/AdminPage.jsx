@@ -110,7 +110,10 @@ const AdminPage = () => {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             if (!res.ok) throw new Error('Failed to fetch products');
             const data = await res.json();
             setProducts(Array.isArray(data) ? data : []);
@@ -144,7 +147,10 @@ const AdminPage = () => {
                 body: formData,
                 headers: { 'X-Admin-Token': adminToken }
             });
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
 
             if (!res.ok) {
                 let errorMsg = 'Server error';
@@ -182,7 +188,10 @@ const AdminPage = () => {
                 method: 'DELETE',
                 headers: { 'X-Admin-Token': adminToken }
             });
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             if (!res.ok) throw new Error('Delete failed');
             fetchProducts();
         } catch (err) { alert('Delete failed: ' + err.message); }
@@ -195,7 +204,10 @@ const AdminPage = () => {
                 method: 'POST',
                 headers: { 'X-Admin-Token': adminToken }
             });
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             if (!res.ok) throw new Error('Clear failed');
             fetchProducts();
             alert('Inventory cleared!');
@@ -212,7 +224,10 @@ const AdminPage = () => {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             const data = await res.json();
             setAboutContent(data || {});
         } catch (err) {
@@ -246,7 +261,10 @@ const AdminPage = () => {
                 },
                 body: JSON.stringify(aboutContent || {})
             });
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             if (!res.ok) {
                 const errData = await res.json();
                 throw new Error(errData.error || 'Update failed');
@@ -265,7 +283,10 @@ const AdminPage = () => {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             const data = await res.json();
             setHomeContent(data || {});
         } catch (err) {
@@ -284,7 +305,10 @@ const AdminPage = () => {
                 },
                 body: JSON.stringify(homeContent || {})
             });
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             if (!res.ok) throw new Error('Update failed');
             alert('Home Page updated successfully!');
         } catch (err) { alert('Save failed: ' + err.message); }
@@ -300,7 +324,10 @@ const AdminPage = () => {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             const data = await res.json();
             setFooterContent(data || {});
         } catch (err) {
@@ -326,7 +353,10 @@ const AdminPage = () => {
                 },
                 body: JSON.stringify(footerContent || {})
             });
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             if (!res.ok) {
                 const errData = await res.json();
                 throw new Error(errData.error || 'Update failed');
@@ -349,7 +379,10 @@ const AdminPage = () => {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             const data = await res.json();
             setGlobalSettings(data || {});
         } catch (err) {
@@ -377,7 +410,10 @@ const AdminPage = () => {
                 body: formData,
                 headers: { 'X-Admin-Token': adminToken }
             });
-            if (res.status === 401) return handleLogout();
+            if (res.status === 401) {
+                alert('Unauthorized: Password mismatch or session expired.');
+                return handleLogout();
+            }
             if (!res.ok) {
                 let errorMsg = 'Failed to save settings';
                 try {
