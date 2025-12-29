@@ -80,11 +80,11 @@ if (cloudinaryConfigured) {
 
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
-    params: async (req: any, file: any) => ({
+    params: {
         folder: 'electroprime_uploads',
-        format: 'jpg', // Force stable format
-        public_id: file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_') + '_' + Math.floor(Math.random() * 1000), // More stable random
-    }),
+        format: 'jpg',
+        public_id: (req: any, file: any) => `${Date.now()}-${file.originalname.split('.')[0].replace(/[^a-z0-9]/gi, '_')}`
+    } as any
 });
 const upload = multer({
     storage,
@@ -129,9 +129,12 @@ app.get('/api/health', async (req, res) => {
         status: 'UP',
         db: mongoose.connection.readyState === 1,
         cloud: cloudinaryConfigured,
-        env: {
-            URI: !!process.env.MONGODB_URI,
-            CLOUD: !!process.env.CLOUDINARY_CLOUD_NAME
+        diagnostics: {
+            node_env: process.env.NODE_ENV,
+            has_mongo: !!process.env.MONGODB_URI,
+            has_cloud_name: !!process.env.CLOUDINARY_CLOUD_NAME,
+            has_api_key: !!process.env.CLOUDINARY_API_KEY,
+            has_api_secret: !!process.env.CLOUDINARY_API_SECRET?.substring(0, 4) + '***'
         }
     });
 });
