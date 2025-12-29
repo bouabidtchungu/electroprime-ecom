@@ -20,9 +20,19 @@ const AdminPage = () => {
     const [homeContent, setHomeContent] = useState(null);
     const [footerContent, setFooterContent] = useState(null);
     const [globalSettings, setGlobalSettings] = useState(null);
+    const [systemHealth, setSystemHealth] = useState({ db: false, cloud: false, loading: true });
+
+    const checkHealth = async () => {
+        try {
+            const res = await fetch('/api/health');
+            const data = await res.json();
+            setSystemHealth({ db: data.db, cloud: data.cloud, loading: false });
+        } catch { setSystemHealth({ db: false, cloud: false, loading: false }); }
+    };
 
     useEffect(() => {
         if (adminToken) {
+            checkHealth();
             fetchProducts();
             fetchAboutContent();
             fetchHomeContent();
@@ -159,11 +169,15 @@ const AdminPage = () => {
                     'Content-Type': 'application/json',
                     'X-Admin-Token': adminToken
                 },
-                body: JSON.stringify(aboutContent)
+                body: JSON.stringify(aboutContent || {})
             });
             if (res.status === 401) return handleLogout();
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Update failed');
+            }
             alert('About Page updated successfully!');
-        } catch (err) { alert('Failed to save content'); }
+        } catch (err) { alert('Save failed: ' + err.message); }
     };
 
     // --- Home Content Handlers ---
@@ -229,14 +243,16 @@ const AdminPage = () => {
                     'Content-Type': 'application/json',
                     'X-Admin-Token': adminToken
                 },
-                body: JSON.stringify(footerContent)
+                body: JSON.stringify(footerContent || {})
             });
             if (res.status === 401) return handleLogout();
-            // Small delay to make the "Saving..." state visible (better UX)
-            await new Promise(resolve => setTimeout(resolve, 500));
-            alert('Footer updated successfully! Please refresh the page to see changes in the footer.');
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Update failed');
+            }
+            alert('Footer updated successfully!');
         } catch (err) {
-            alert('Failed to save content');
+            alert('Save failed: ' + err.message);
         } finally {
             setIsSaving(false);
         }
@@ -321,6 +337,21 @@ const AdminPage = () => {
 
     return (
         <div className="container mx-auto px-6 py-12 min-h-screen">
+            {/* Health Indicator */}
+            <div className="flex justify-center mb-6">
+                <div className="bg-gray-900/50 backdrop-blur px-4 py-2 rounded-full border border-gray-800 flex items-center gap-6 text-[10px] uppercase font-bold tracking-widest transition-all">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${systemHealth.loading ? 'bg-gray-500' : systemHealth.db ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`}></div>
+                        <span className={systemHealth.db ? 'text-green-500' : 'text-red-500'}>Database: {systemHealth.loading ? 'Checking...' : systemHealth.db ? 'Connected' : 'Disconnected'}</span>
+                    </div>
+                    <div className="w-px h-4 bg-gray-800"></div>
+                    <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${systemHealth.loading ? 'bg-gray-500' : systemHealth.cloud ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`}></div>
+                        <span className={systemHealth.cloud ? 'text-green-500' : 'text-red-500'}>Storage: {systemHealth.loading ? 'Checking...' : systemHealth.cloud ? 'Cloudinary OK' : 'Config Missing'}</span>
+                    </div>
+                </div>
+            </div>
+
             <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
                 <div className="flex-1" /> {/* Spacer */}
                 <h1 className="text-4xl font-bold text-center text-text-heavy">Admin Dashboard</h1>

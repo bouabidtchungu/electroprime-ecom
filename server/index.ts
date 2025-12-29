@@ -42,16 +42,29 @@ const DEFAULTS = {
 let isConnected = false;
 const connectDB = async () => {
     if (isConnected && mongoose.connection.readyState === 1) return;
-    if (!MONGODB_URI) return;
+    if (!MONGODB_URI) {
+        console.error('❌ MONGODB_URI is missing from environment variables!');
+        return;
+    }
     try {
+        console.log('🔌 Attempting MongoDB connection...');
         const db = await mongoose.connect(MONGODB_URI, {
-            serverSelectionTimeoutMS: 8000,
+            serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
-            connectTimeoutMS: 10000
+            connectTimeoutMS: 10000,
+            heartbeatFrequencyMS: 10000
         });
         isConnected = !!db.connections[0].readyState;
         console.log('✅ Connected to MongoDB');
-    } catch (err: any) { console.error('❌ MongoDB Connection Error:', err.message); }
+    } catch (err: any) {
+        const msg = err.message || 'Unknown error';
+        console.error(`❌ MongoDB Connection Error: ${msg}`);
+        if (msg.includes('Authentication failed')) {
+            console.error('👉 CHECK: Are your MongoDB username/password correct in Vercel?');
+        } else if (msg.includes('timed out')) {
+            console.error('👉 CHECK: Is your MongoDB Atlas IP Access 0.0.0.0/0 allowed?');
+        }
+    }
 };
 
 // --- Cloudinary & Storage ---
@@ -163,15 +176,22 @@ app.get('/api/global', async (req, res) => {
 });
 
 // --- Mutations ---
-app.post('/api/products', authMiddleware, (req, res, next) => {
-    upload.single('image')(req, res, (err) => {
+app.post('/api/products', authMiddleware, (req: any, res: any, next: any) => {
+    const contentLength = req.headers['content-length'];
+    if (contentLength) {
+        console.log(`📡 Product Post Request Size: ${(parseInt(contentLength) / 1024).toFixed(2)} KB`);
+        if (parseInt(contentLength) > 4.5 * 1024 * 1024) {
+            console.error('⚠️ REQUEST TOO LARGE: Vercel limit is 4.5MB');
+        }
+    }
+    upload.single('image')(req, res, (err: any) => {
         if (err) {
             console.error('❌ Multer Upload Error:', err);
-            return res.status(400).json({ error: 'Image upload failed: ' + err.message + '. Try a smaller image (under 4MB).' });
+            return res.status(400).json({ error: 'Image upload failed: ' + err.message + '. Vercel limits files to ~4MB.' });
         }
         next();
     });
-}, async (req, res) => {
+}, async (req: any, res: any) => {
     await connectDB();
     try {
         const { title, description, price } = req.body;
@@ -235,8 +255,15 @@ app.post('/api/home', authMiddleware, async (req, res) => {
 
 app.post('/api/footer', authMiddleware, async (req, res) => {
     await connectDB();
-    try { res.json(await Footer.findOneAndUpdate({}, req.body, { upsert: true, new: true })); }
-    catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+        const updated = await Footer.findOneAndUpdate({}, req.body || {}, { upsert: true, new: true });
+        console.log('✅ Footer updated');
+        res.json(updated);
+    }
+    catch (e: any) {
+        console.error('❌ Footer save error:', e);
+        res.status(500).json({ error: 'Footer save failed: ' + e.message });
+    }
 });
 
 app.post('/api/global', authMiddleware, (req: any, res: any, next: any) => {
