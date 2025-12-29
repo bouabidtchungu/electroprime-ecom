@@ -277,9 +277,9 @@ const AdminPage = () => {
         e.preventDefault();
         setIsSaving(true);
         const formData = new FormData();
-        formData.append('logoText', globalSettings.logoText);
-        formData.append('logoAlignment', globalSettings.logoAlignment);
-        formData.append('showLogoImage', globalSettings.showLogoImage);
+        formData.append('logoText', globalSettings.logoText || '');
+        formData.append('logoAlignment', globalSettings.logoAlignment || 'left');
+        formData.append('showLogoImage', (!!globalSettings.showLogoImage).toString());
 
         const logoFileInput = document.getElementById('logo-upload');
         if (logoFileInput && logoFileInput.files[0]) {
@@ -295,11 +295,11 @@ const AdminPage = () => {
             if (res.status === 401) return handleLogout();
             if (!res.ok) {
                 const errData = await res.json();
-                throw new Error(errData.error || 'Failed');
+                throw new Error(errData.error || 'Failed to save settings');
             }
             const data = await res.json();
             setGlobalSettings(data);
-            alert('Settings updated successfully! Please refresh to see changes.');
+            alert('Settings updated successfully! Please refresh once to see changes.');
         } catch (err) { alert('Failed to save settings: ' + err.message); }
         finally { setIsSaving(false); }
     };
@@ -644,7 +644,7 @@ const AdminPage = () => {
                                             />
                                         </div>
                                     </div>
-                                    <button onClick={handleSaveHome} className="w-full bg-tech-secondary hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg transition">Save Home Page</button>
+                                    <button type="submit" className="w-full bg-tech-secondary hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg transition">Save Home Page</button>
                                 </form>
                             </div>
                         )

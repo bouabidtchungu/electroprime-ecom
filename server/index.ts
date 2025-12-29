@@ -249,8 +249,15 @@ app.post('/api/about', authMiddleware, async (req, res) => {
 
 app.post('/api/home', authMiddleware, async (req, res) => {
     await connectDB();
-    try { res.json(await Home.findOneAndUpdate({}, req.body, { upsert: true, new: true })); }
-    catch (e: any) { res.status(500).json({ error: e.message }); }
+    try {
+        const updated = await Home.findOneAndUpdate({}, req.body || {}, { upsert: true, new: true });
+        console.log('✅ Home updated');
+        res.json(updated);
+    }
+    catch (e: any) {
+        console.error('❌ Home save error:', e);
+        res.status(500).json({ error: 'Home save failed: ' + e.message });
+    }
 });
 
 app.post('/api/footer', authMiddleware, async (req, res) => {

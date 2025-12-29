@@ -21,7 +21,10 @@ const AboutPage = () => {
     if (error) return <div className="min-h-screen bg-bg-base text-red-500 flex items-center justify-center p-6 text-center">{error}</div>;
     if (!content) return <div className="min-h-screen bg-bg-base text-white flex items-center justify-center">Loading story...</div>;
 
-    const { hero, values, stats } = content;
+    // Use default objects to prevent crashes if certain sub-fields are missing
+    const hero = content.hero || { title: 'Our Story', subtitle: 'ElectroPrime', description: 'Experience excellence in electronics.' };
+    const values = content.values || [];
+    const stats = content.stats || [];
 
     return (
         <div className="min-h-screen bg-bg-base text-gray-300">
