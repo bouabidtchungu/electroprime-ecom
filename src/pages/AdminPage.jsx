@@ -434,14 +434,22 @@ const AdminPage = () => {
             <div className="flex justify-center mb-6">
                 <div className="bg-gray-900/50 backdrop-blur px-4 py-2 rounded-full border border-gray-800 flex items-center gap-6 text-[10px] uppercase font-bold tracking-widest transition-all">
                     <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${systemHealth.loading ? 'bg-gray-500' : systemHealth.db ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`}></div>
-                        <span className={systemHealth.db ? 'text-green-500' : 'text-red-500'}>Database: {systemHealth.loading ? 'Checking...' : systemHealth.db ? 'Connected' : 'Disconnected'}</span>
+                        <div className={`w-2 h-2 rounded-full ${systemHealth.loading ? 'bg-gray-500 animate-pulse' : systemHealth.db ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`}></div>
+                        <span className={systemHealth.db ? 'text-green-500' : 'text-red-500'}>Database: {systemHealth.loading ? '...' : systemHealth.db ? 'OK' : 'OFF'}</span>
                     </div>
-                    <div className="w-px h-4 bg-gray-800"></div>
+                    <div className="w-px h-3 bg-gray-800"></div>
                     <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${systemHealth.loading ? 'bg-gray-500' : systemHealth.cloud ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`}></div>
-                        <span className={systemHealth.cloud ? 'text-green-500' : 'text-red-500'}>Storage: {systemHealth.loading ? 'Checking...' : systemHealth.cloud ? 'Cloudinary OK' : 'Config Missing'}</span>
+                        <div className={`w-2 h-2 rounded-full ${systemHealth.loading ? 'bg-gray-500 animate-pulse' : systemHealth.cloud ? 'bg-blue-500 shadow-[0_0_8px_#3b82f6]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`}></div>
+                        <span className={systemHealth.cloud ? 'text-blue-500' : 'text-red-500'}>Cloud: {systemHealth.loading ? '...' : systemHealth.cloud ? 'OK' : 'OFF'}</span>
                     </div>
+                    <div className="w-px h-3 bg-gray-800"></div>
+                    <button
+                        onClick={() => { setSystemHealth({ ...systemHealth, loading: true }); checkHealth(); fetchProducts(); }}
+                        className="text-gray-500 hover:text-tech-primary transition-colors flex items-center gap-1"
+                        title="Force synchronization"
+                    >
+                        <span>🔄</span> {systemHealth.loading ? 'SYNCING' : 'REFRESH'}
+                    </button>
                 </div>
             </div>
 

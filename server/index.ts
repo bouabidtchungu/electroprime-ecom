@@ -10,7 +10,8 @@ import dotenv from 'dotenv';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
-dotenv.config();
+dotenv.config({ path: path.join(process.cwd(), '.env') });
+console.log('🌍 Environment variables loaded from:', path.join(process.cwd(), '.env'));
 
 // --- Configuration ---
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -347,5 +348,8 @@ app.get('*', (req, res) => {
 export default app;
 
 if (isDev || process.env.VITE_DEV === 'true') {
-    createServer(app).listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
+    (async () => {
+        await connectDB();
+        createServer(app).listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
+    })();
 }
