@@ -82,8 +82,8 @@ const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: async (req: any, file: any) => ({
         folder: 'electroprime_uploads',
-        allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'svg'],
-        public_id: Date.now() + '-' + file.originalname.split('.')[0],
+        format: 'jpg', // Force stable format
+        public_id: file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_') + '_' + Math.floor(Math.random() * 1000), // More stable random
     }),
 });
 const upload = multer({

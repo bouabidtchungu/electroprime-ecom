@@ -148,9 +148,15 @@ const AdminPage = () => {
             });
             if (res.status === 401) return handleLogout();
 
-            const data = await res.json();
             if (!res.ok) {
-                throw new Error(data.error || 'Server error');
+                let errorMsg = 'Server error';
+                try {
+                    const data = await res.json();
+                    errorMsg = data.error || errorMsg;
+                } catch (e) {
+                    errorMsg = `Error ${res.status}: ${res.statusText}`;
+                }
+                throw new Error(errorMsg);
             }
 
             setProductForm({ id: null, title: '', description: '', price: '' });
@@ -358,8 +364,14 @@ const AdminPage = () => {
             });
             if (res.status === 401) return handleLogout();
             if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.error || 'Failed to save settings');
+                let errorMsg = 'Failed to save settings';
+                try {
+                    const data = await res.json();
+                    errorMsg = data.error || errorMsg;
+                } catch (e) {
+                    errorMsg = `Error ${res.status}: ${res.statusText}`;
+                }
+                throw new Error(errorMsg);
             }
             const data = await res.json();
             setGlobalSettings(data);
