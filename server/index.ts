@@ -52,7 +52,8 @@ const connectDB = async () => {
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
             connectTimeoutMS: 10000,
-            heartbeatFrequencyMS: 10000
+            heartbeatFrequencyMS: 10000,
+            bufferCommands: false // Disable buffering so it fails fast
         });
         isConnected = !!db.connections[0].readyState;
         console.log('✅ Connected to MongoDB');
@@ -138,15 +139,15 @@ app.get('/api/health', async (req, res) => {
 app.get('/api/products', async (req, res) => {
     await connectDB();
     try {
-        const items = await Product.find().lean();
-        res.json(items.length > 0 ? items : getJsonData('products.json', []));
+        const items = await Product.find().maxTimeMS(2000).lean();
+        res.json(items && items.length > 0 ? items : getJsonData('products.json', []));
     } catch (e) { res.json(getJsonData('products.json', [])); }
 });
 
 app.get('/api/about', async (req, res) => {
     await connectDB();
     try {
-        const data = await About.findOne().lean();
+        const data = await About.findOne().maxTimeMS(2000).lean();
         res.json(data || getJsonData('about.json', DEFAULTS.about));
     } catch (e) { res.json(getJsonData('about.json', DEFAULTS.about)); }
 });
@@ -154,7 +155,7 @@ app.get('/api/about', async (req, res) => {
 app.get('/api/home', async (req, res) => {
     await connectDB();
     try {
-        const data = await Home.findOne().lean();
+        const data = await Home.findOne().maxTimeMS(2000).lean();
         res.json(data || getJsonData('home.json', DEFAULTS.home));
     } catch (e) { res.json(getJsonData('home.json', DEFAULTS.home)); }
 });
@@ -162,7 +163,7 @@ app.get('/api/home', async (req, res) => {
 app.get('/api/footer', async (req, res) => {
     await connectDB();
     try {
-        const data = await Footer.findOne().lean();
+        const data = await Footer.findOne().maxTimeMS(2000).lean();
         res.json(data || getJsonData('footer.json', DEFAULTS.footer));
     } catch (e) { res.json(getJsonData('footer.json', DEFAULTS.footer)); }
 });
@@ -170,7 +171,7 @@ app.get('/api/footer', async (req, res) => {
 app.get('/api/global', async (req, res) => {
     await connectDB();
     try {
-        const data = await Global.findOne().lean();
+        const data = await Global.findOne().maxTimeMS(2000).lean();
         res.json(data || getJsonData('global.json', DEFAULTS.global));
     } catch (e) { res.json(getJsonData('global.json', DEFAULTS.global)); }
 });
@@ -282,11 +283,20 @@ app.post('/api/global', authMiddleware, (req: any, res: any, next: any) => {
     await connectDB();
     try {
         const { logoText, logoAlignment, showLogoImage } = req.body;
-        const newSettings: any = { logoText, logoAlignment, showLogoImage: showLogoImage === 'true' || showLogoImage === true };
-        if (req.file) newSettings.logoImage = req.file.path;
-        const updated = await Global.findOneAndUpdate({}, newSettings, { upsert: true, new: true });
+        const updateData: any = {
+            logoText: logoText || 'ElectroPrime',
+            logoAlignment: logoAlignment || 'left',
+            showLogoImage: showLogoImage === 'true' || showLogoImage === true
+        };
+        if (req.file) updateData.logoImage = req.file.path;
+
+        const updated = await Global.findOneAndUpdate({}, { $set: updateData }, { upsert: true, new: true });
+        console.log('✅ Global settings updated');
         res.json(updated);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) {
+        console.error('❌ Global save error:', e);
+        res.status(500).json({ error: 'Settings save failed: ' + e.message });
+    }
 });
 
 // --- Serving ---

@@ -15,11 +15,15 @@ const AdminPage = () => {
     const [isEditingProduct, setIsEditingProduct] = useState(false);
 
     // About, Home, & Footer Content State
-    const [contentTab, setContentTab] = useState('about'); // 'about', 'home', or 'footer'
-    const [aboutContent, setAboutContent] = useState(null);
-    const [homeContent, setHomeContent] = useState(null);
-    const [footerContent, setFooterContent] = useState(null);
-    const [globalSettings, setGlobalSettings] = useState(null);
+    const [contentTab, setContentTab] = useState('about');
+    const [aboutContent, setAboutContent] = useState({
+        hero: { title: 'Our Story', subtitle: 'ElectroPrime', description: 'Experience excellence in electronics.' },
+        values: [{ title: '', description: '' }, { title: '', description: '' }, { title: '', description: '' }],
+        stats: [{ value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }]
+    });
+    const [homeContent, setHomeContent] = useState({ title: '', subtitle: '', description: '', cta: '' });
+    const [footerContent, setFooterContent] = useState({ brandName: '', description: '', copyright: '', contact: { email: '', phone: '' } });
+    const [globalSettings, setGlobalSettings] = useState({ logoText: 'ElectroPrime', logoAlignment: 'left', showLogoImage: false });
     const [systemHealth, setSystemHealth] = useState({ db: false, cloud: false, loading: true });
 
     const checkHealth = async () => {
@@ -57,18 +61,18 @@ const AdminPage = () => {
 
     // --- Product Handlers ---
     const fetchProducts = async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
             const res = await fetch('/api/products', {
-                headers: { 'X-Admin-Token': adminToken }
+                headers: { 'X-Admin-Token': adminToken },
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             if (res.status === 401) return handleLogout();
             if (!res.ok) throw new Error('Failed to fetch products');
             const data = await res.json();
-            if (Array.isArray(data)) {
-                setProducts(data);
-            } else {
-                setProducts([]);
-            }
+            setProducts(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
             setProducts([]);
@@ -133,16 +137,20 @@ const AdminPage = () => {
 
     // --- About Content Handlers ---
     const fetchAboutContent = async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
             const res = await fetch('/api/about', {
-                headers: { 'X-Admin-Token': adminToken }
+                headers: { 'X-Admin-Token': adminToken },
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             if (res.status === 401) return handleLogout();
             const data = await res.json();
             setAboutContent(data || {});
         } catch (err) {
             console.error('About fetch error:', err);
-            setAboutContent({});
+            // Default already set in state
         }
     };
 
@@ -182,16 +190,19 @@ const AdminPage = () => {
 
     // --- Home Content Handlers ---
     const fetchHomeContent = async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
             const res = await fetch('/api/home', {
-                headers: { 'X-Admin-Token': adminToken }
+                headers: { 'X-Admin-Token': adminToken },
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             if (res.status === 401) return handleLogout();
             const data = await res.json();
             setHomeContent(data || {});
         } catch (err) {
             console.error('Home fetch error:', err);
-            setHomeContent({});
         }
     };
 
@@ -214,16 +225,19 @@ const AdminPage = () => {
 
     // --- Footer Content Handlers ---
     const fetchFooterContent = async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
             const res = await fetch('/api/footer', {
-                headers: { 'X-Admin-Token': adminToken }
+                headers: { 'X-Admin-Token': adminToken },
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             if (res.status === 401) return handleLogout();
             const data = await res.json();
             setFooterContent(data || {});
         } catch (err) {
             console.error('Footer fetch error:', err);
-            setFooterContent({});
         }
     };
 
@@ -260,16 +274,19 @@ const AdminPage = () => {
 
     // --- Global Settings Handlers ---
     const fetchGlobalSettings = async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
             const res = await fetch('/api/global', {
-                headers: { 'X-Admin-Token': adminToken }
+                headers: { 'X-Admin-Token': adminToken },
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             if (res.status === 401) return handleLogout();
             const data = await res.json();
             setGlobalSettings(data || {});
         } catch (err) {
-            console.error('Global fetch error:', err);
-            setGlobalSettings({});
+            console.error('Global settings fetch error:', err);
         }
     };
 
@@ -505,296 +522,268 @@ const AdminPage = () => {
 
                     {/* ABOUT CONTENT */}
                     {contentTab === 'about' && (
-                        !aboutContent ? (
-                            <div className="text-center py-12">
-                                <p className="text-gray-400 text-xl mb-4">Loading About content...</p>
-                                <button onClick={fetchAboutContent} className="bg-tech-primary text-black px-6 py-2 rounded-full font-bold hover:bg-yellow-500 transition">Retry</button>
-                            </div>
-                        ) : (
-                            <div className="bg-gray-900 p-8 rounded-3xl shadow-2xl border border-gray-800">
-                                <h2 className="text-2xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Edit About Page</h2>
-                                <form onSubmit={handleSaveAbout} className="space-y-8">
-                                    {/* Hero Section */}
-                                    <div className="space-y-4">
-                                        <h3 className="text-xl text-tech-primary font-bold">1. Hero Section</h3>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Main Heading</label>
+                        <div className="bg-gray-900 p-8 rounded-3xl shadow-2xl border border-gray-800">
+                            <h2 className="text-2xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Edit About Page</h2>
+                            <form onSubmit={handleSaveAbout} className="space-y-8">
+                                {/* Hero Section */}
+                                <div className="space-y-4">
+                                    <h3 className="text-xl text-tech-primary font-bold">1. Hero Section</h3>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Main Heading</label>
+                                        <input
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            value={aboutContent.hero?.title || ''}
+                                            onChange={e => handleAboutChange('hero', 'title', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Subtitle</label>
+                                        <input
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            value={aboutContent.hero?.subtitle || ''}
+                                            onChange={e => handleAboutChange('hero', 'subtitle', e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Intro Description</label>
+                                        <textarea
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            rows="3"
+                                            value={aboutContent.hero?.description || ''}
+                                            onChange={e => handleAboutChange('hero', 'description', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Values Section */}
+                                <div className="space-y-4">
+                                    <h3 className="text-xl text-tech-primary font-bold">2. Our Values (3 Columns)</h3>
+                                    {(aboutContent.values || []).map((val, idx) => (
+                                        <div key={idx} className="p-4 border border-gray-700 rounded-xl bg-gray-800/30">
+                                            <h4 className="text-white font-semibold mb-2">Value #{idx + 1}</h4>
                                             <input
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={aboutContent.hero?.title || ''}
-                                                onChange={e => handleAboutChange('hero', 'title', e.target.value)}
+                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white mb-2 outline-none focus:border-tech-primary"
+                                                placeholder="Title (e.g. Innovation First)"
+                                                value={val.title || ''}
+                                                onChange={e => handleAboutChange('values', 'title', e.target.value, idx)}
                                             />
-                                        </div>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Subtitle</label>
-                                            <input
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={aboutContent.hero?.subtitle || ''}
-                                                onChange={e => handleAboutChange('hero', 'subtitle', e.target.value)}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Intro Description</label>
                                             <textarea
                                                 className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                rows="3"
-                                                value={aboutContent.hero?.description || ''}
-                                                onChange={e => handleAboutChange('hero', 'description', e.target.value)}
+                                                rows="2"
+                                                placeholder="Description"
+                                                value={val.description || ''}
+                                                onChange={e => handleAboutChange('values', 'description', e.target.value, idx)}
                                             />
                                         </div>
-                                    </div>
+                                    ))}
+                                </div>
 
-                                    {/* Values Section */}
-                                    <div className="space-y-4">
-                                        <h3 className="text-xl text-tech-primary font-bold">2. Our Values (3 Columns)</h3>
-                                        {(aboutContent.values || []).map((val, idx) => (
+                                {/* Stats Section */}
+                                <div className="space-y-4">
+                                    <h3 className="text-xl text-tech-primary font-bold">3. Key Stats</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {(aboutContent.stats || []).map((stat, idx) => (
                                             <div key={idx} className="p-4 border border-gray-700 rounded-xl bg-gray-800/30">
-                                                <h4 className="text-white font-semibold mb-2">Value #{idx + 1}</h4>
+                                                <h4 className="text-white font-semibold mb-2">Stat #{idx + 1}</h4>
                                                 <input
                                                     className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white mb-2 outline-none focus:border-tech-primary"
-                                                    placeholder="Title (e.g. Innovation First)"
-                                                    value={val.title || ''}
-                                                    onChange={e => handleAboutChange('values', 'title', e.target.value, idx)}
+                                                    placeholder="Value (e.g. 10k+)"
+                                                    value={stat.value || ''}
+                                                    onChange={e => handleAboutChange('stats', 'value', e.target.value, idx)}
                                                 />
-                                                <textarea
+                                                <input
                                                     className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                    rows="2"
-                                                    placeholder="Description"
-                                                    value={val.description || ''}
-                                                    onChange={e => handleAboutChange('values', 'description', e.target.value, idx)}
+                                                    placeholder="Label (e.g. Products Sold)"
+                                                    value={stat.label || ''}
+                                                    onChange={e => handleAboutChange('stats', 'label', e.target.value, idx)}
                                                 />
                                             </div>
                                         ))}
                                     </div>
+                                </div>
 
-                                    {/* Stats Section */}
-                                    <div className="space-y-4">
-                                        <h3 className="text-xl text-tech-primary font-bold">3. Key Stats</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {(aboutContent.stats || []).map((stat, idx) => (
-                                                <div key={idx} className="p-4 border border-gray-700 rounded-xl bg-gray-800/30">
-                                                    <h4 className="text-white font-semibold mb-2">Stat #{idx + 1}</h4>
-                                                    <input
-                                                        className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white mb-2 outline-none focus:border-tech-primary"
-                                                        placeholder="Value (e.g. 10k+)"
-                                                        value={stat.value || ''}
-                                                        onChange={e => handleAboutChange('stats', 'value', e.target.value, idx)}
-                                                    />
-                                                    <input
-                                                        className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                        placeholder="Label (e.g. Products Sold)"
-                                                        value={stat.label || ''}
-                                                        onChange={e => handleAboutChange('stats', 'label', e.target.value, idx)}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <button type="submit" className="w-full bg-tech-secondary hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg transition">Save About Page</button>
-                                </form>
-                            </div>
-                        )
+                                <button type="submit" className="w-full bg-tech-secondary hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg transition">Save About Page</button>
+                            </form>
+                        </div>
                     )}
 
                     {/* HOME CONTENT */}
                     {contentTab === 'home' && (
-                        !homeContent ? (
-                            <div className="text-center py-12">
-                                <p className="text-gray-400 text-xl mb-4">Loading Home content...</p>
-                                <button onClick={fetchHomeContent} className="bg-tech-primary text-black px-6 py-2 rounded-full font-bold hover:bg-yellow-500 transition">Retry</button>
-                            </div>
-                        ) : (
-                            <div className="bg-gray-900 p-8 rounded-3xl shadow-2xl border border-gray-800">
-                                <h2 className="text-2xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Edit Home Page</h2>
-                                <form onSubmit={handleSaveHome} className="space-y-8">
-                                    <div className="space-y-4">
-                                        <h3 className="text-xl text-tech-primary font-bold">Hero Section</h3>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Title</label>
-                                            <input
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={homeContent.title || ''}
-                                                onChange={e => setHomeContent({ ...homeContent, title: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Subtitle</label>
-                                            <input
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={homeContent.subtitle || ''}
-                                                onChange={e => setHomeContent({ ...homeContent, subtitle: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Description</label>
-                                            <textarea
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                rows="3"
-                                                value={homeContent.description || ''}
-                                                onChange={e => setHomeContent({ ...homeContent, description: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">CTA Button Text</label>
-                                            <input
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={homeContent.cta || ''}
-                                                onChange={e => setHomeContent({ ...homeContent, cta: e.target.value })}
-                                            />
-                                        </div>
+                        <div className="bg-gray-900 p-8 rounded-3xl shadow-2xl border border-gray-800">
+                            <h2 className="text-2xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Edit Home Page</h2>
+                            <form onSubmit={handleSaveHome} className="space-y-8">
+                                <div className="space-y-4">
+                                    <h3 className="text-xl text-tech-primary font-bold">Hero Section</h3>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Title</label>
+                                        <input
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            value={homeContent.title || ''}
+                                            onChange={e => setHomeContent({ ...homeContent, title: e.target.value })}
+                                        />
                                     </div>
-                                    <button type="submit" className="w-full bg-tech-secondary hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg transition">Save Home Page</button>
-                                </form>
-                            </div>
-                        )
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Subtitle</label>
+                                        <input
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            value={homeContent.subtitle || ''}
+                                            onChange={e => setHomeContent({ ...homeContent, subtitle: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Description</label>
+                                        <textarea
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            rows="3"
+                                            value={homeContent.description || ''}
+                                            onChange={e => setHomeContent({ ...homeContent, description: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">CTA Button Text</label>
+                                        <input
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            value={homeContent.cta || ''}
+                                            onChange={e => setHomeContent({ ...homeContent, cta: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <button type="submit" className="w-full bg-tech-secondary hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg transition">Save Home Page</button>
+                            </form>
+                        </div>
                     )}
 
                     {/* FOOTER CONTENT */}
                     {contentTab === 'footer' && (
-                        !footerContent ? (
-                            <div className="text-center py-12">
-                                <p className="text-gray-400 text-xl mb-4">Loading Footer content...</p>
-                                <button onClick={fetchFooterContent} className="bg-tech-primary text-black px-6 py-2 rounded-full font-bold hover:bg-yellow-500 transition">Retry</button>
-                            </div>
-                        ) : (
-                            <div className="bg-gray-900 p-8 rounded-3xl shadow-2xl border border-gray-800">
-                                <h2 className="text-2xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Edit Footer</h2>
-                                <form onSubmit={handleSaveFooter} className="space-y-8">
-                                    <div className="space-y-4">
-                                        <h3 className="text-xl text-tech-primary font-bold">General Info</h3>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Brand Name</label>
-                                            <input
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={footerContent.brandName || ''}
-                                                onChange={e => setFooterContent({ ...footerContent, brandName: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Short Description</label>
-                                            <textarea
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                rows="3"
-                                                value={footerContent.description || ''}
-                                                onChange={e => setFooterContent({ ...footerContent, description: e.target.value })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Copyright Text</label>
-                                            <input
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={footerContent.copyright || ''}
-                                                onChange={e => setFooterContent({ ...footerContent, copyright: e.target.value })}
-                                            />
-                                        </div>
-
-                                        <h3 className="text-xl text-tech-primary font-bold mt-6">Contact Info</h3>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Email</label>
-                                            <input
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={footerContent.contact?.email || ''}
-                                                onChange={e => setFooterContent({ ...footerContent, contact: { ...footerContent.contact, email: e.target.value } })}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Phone</label>
-                                            <input
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={footerContent.contact?.phone || ''}
-                                                onChange={e => setFooterContent({ ...footerContent, contact: { ...footerContent.contact, phone: e.target.value } })}
-                                            />
-                                        </div>
+                        <div className="bg-gray-900 p-8 rounded-3xl shadow-2xl border border-gray-800">
+                            <h2 className="text-2xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Edit Footer</h2>
+                            <form onSubmit={handleSaveFooter} className="space-y-8">
+                                <div className="space-y-4">
+                                    <h3 className="text-xl text-tech-primary font-bold">General Info</h3>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Brand Name</label>
+                                        <input
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            value={footerContent.brandName || ''}
+                                            onChange={e => setFooterContent({ ...footerContent, brandName: e.target.value })}
+                                        />
                                     </div>
-                                    <button
-                                        type="submit"
-                                        disabled={isSaving}
-                                        className={`w-full font-bold py-4 rounded-xl shadow-lg transition ${isSaving ? 'bg-gray-600 cursor-not-allowed' : 'bg-tech-secondary hover:bg-blue-600'} text-white`}
-                                    >
-                                        {isSaving ? 'Saving...' : 'Save Footer Content'}
-                                    </button>
-                                </form>
-                            </div>
-                        )
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Short Description</label>
+                                        <textarea
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            rows="3"
+                                            value={footerContent.description || ''}
+                                            onChange={e => setFooterContent({ ...footerContent, description: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Copyright Text</label>
+                                        <input
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            value={footerContent.copyright || ''}
+                                            onChange={e => setFooterContent({ ...footerContent, copyright: e.target.value })}
+                                        />
+                                    </div>
+
+                                    <h3 className="text-xl text-tech-primary font-bold mt-6">Contact Info</h3>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Email</label>
+                                        <input
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            value={footerContent.contact?.email || ''}
+                                            onChange={e => setFooterContent({ ...footerContent, contact: { ...footerContent.contact, email: e.target.value } })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Phone</label>
+                                        <input
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            value={footerContent.contact?.phone || ''}
+                                            onChange={e => setFooterContent({ ...footerContent, contact: { ...footerContent.contact, phone: e.target.value } })}
+                                        />
+                                    </div>
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={isSaving}
+                                    className={`w-full font-bold py-4 rounded-xl shadow-lg transition ${isSaving ? 'bg-gray-600 cursor-not-allowed' : 'bg-tech-secondary hover:bg-blue-600'} text-white`}
+                                >
+                                    {isSaving ? 'Saving...' : 'Save Footer Content'}
+                                </button>
+                            </form>
+                        </div>
                     )}
 
                     {/* LOGO & GLOBAL SETTINGS */}
                     {contentTab === 'logo' && (
-                        !globalSettings ? (
-                            <div className="text-center py-12">
-                                <p className="text-gray-400 text-xl mb-4">Loading Settings...</p>
-                                <button onClick={fetchGlobalSettings} className="bg-tech-primary text-black px-6 py-2 rounded-full font-bold hover:bg-yellow-500 transition">Retry</button>
-                            </div>
-                        ) : (
-                            <div className="bg-gray-900 p-8 rounded-3xl shadow-2xl border border-gray-800">
-                                <h2 className="text-2xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Logo & Header Settings</h2>
-                                <form onSubmit={handleSaveGlobal} className="space-y-8">
-                                    <div className="space-y-6">
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Logo Text</label>
+                        <div className="bg-gray-900 p-8 rounded-3xl shadow-2xl border border-gray-800">
+                            <h2 className="text-2xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Logo & Header Settings</h2>
+                            <form onSubmit={handleSaveGlobal} className="space-y-8">
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Logo Text</label>
+                                        <input
+                                            className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
+                                            value={globalSettings.logoText || ''}
+                                            onChange={e => setGlobalSettings({ ...globalSettings, logoText: e.target.value })}
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center gap-4 p-4 border border-gray-800 rounded-xl bg-gray-800/30">
+                                        <div className="flex-1">
+                                            <h4 className="text-white font-semibold">Enable Logo Image</h4>
+                                            <p className="text-gray-400 text-sm">Should an image be displayed next to the text?</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setGlobalSettings({ ...globalSettings, showLogoImage: !globalSettings.showLogoImage })}
+                                            className={`w-14 h-8 rounded-full transition-colors relative ${globalSettings.showLogoImage ? 'bg-tech-primary' : 'bg-gray-700'}`}
+                                        >
+                                            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${globalSettings.showLogoImage ? 'left-7' : 'left-1'}`} />
+                                        </button>
+                                    </div>
+
+                                    {globalSettings.showLogoImage && (
+                                        <div className="p-4 border border-gray-800 rounded-xl bg-gray-800/30 space-y-4">
+                                            <label className="block text-gray-400 text-sm mb-1">Logo Image</label>
+                                            {globalSettings.logoImage && (
+                                                <img src={globalSettings.logoImage} alt="Current Logo" className="h-12 w-auto object-contain bg-gray-900 rounded p-2" />
+                                            )}
                                             <input
-                                                className="w-full px-4 py-2 bg-gray-800 border-gray-700 rounded-lg text-white outline-none focus:border-tech-primary"
-                                                value={globalSettings.logoText || ''}
-                                                onChange={e => setGlobalSettings({ ...globalSettings, logoText: e.target.value })}
+                                                id="logo-upload"
+                                                type="file"
+                                                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 outline-none file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:bg-gray-700 file:text-white"
+                                                accept="image/*"
                                             />
                                         </div>
+                                    )}
 
-                                        <div className="flex items-center gap-4 p-4 border border-gray-800 rounded-xl bg-gray-800/30">
-                                            <div className="flex-1">
-                                                <h4 className="text-white font-semibold">Enable Logo Image</h4>
-                                                <p className="text-gray-400 text-sm">Should an image be displayed next to the text?</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setGlobalSettings({ ...globalSettings, showLogoImage: !globalSettings.showLogoImage })}
-                                                className={`w-14 h-8 rounded-full transition-colors relative ${globalSettings.showLogoImage ? 'bg-tech-primary' : 'bg-gray-700'}`}
-                                            >
-                                                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${globalSettings.showLogoImage ? 'left-7' : 'left-1'}`} />
-                                            </button>
-                                        </div>
-
-                                        {globalSettings.showLogoImage && (
-                                            <div className="p-4 border border-gray-800 rounded-xl bg-gray-800/30 space-y-4">
-                                                <label className="block text-gray-400 text-sm mb-1">Logo Image</label>
-                                                {globalSettings.logoImage && (
-                                                    <img src={globalSettings.logoImage} alt="Current Logo" className="h-12 w-auto object-contain bg-gray-900 rounded p-2" />
-                                                )}
-                                                <input
-                                                    id="logo-upload"
-                                                    type="file"
-                                                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 outline-none file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:bg-gray-700 file:text-white"
-                                                    accept="image/*"
-                                                />
-                                            </div>
-                                        )}
-
-                                        <div>
-                                            <label className="block text-gray-400 text-sm mb-1">Header Alignment</label>
-                                            <div className="flex gap-4">
-                                                {['left', 'center'].map(align => (
-                                                    <button
-                                                        key={align}
-                                                        type="button"
-                                                        onClick={() => setGlobalSettings({ ...globalSettings, logoAlignment: align })}
-                                                        className={`flex-1 py-3 rounded-xl font-bold border transition ${globalSettings.logoAlignment === align ? 'bg-tech-primary text-black border-tech-primary' : 'bg-gray-800 text-gray-400 border-gray-700 hover:text-white'}`}
-                                                    >
-                                                        {align === 'left' ? 'Left Aligned' : 'Centered'}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                    <div>
+                                        <label className="block text-gray-400 text-sm mb-1">Header Alignment</label>
+                                        <div className="flex gap-4">
+                                            {['left', 'center'].map(align => (
+                                                <button
+                                                    key={align}
+                                                    type="button"
+                                                    onClick={() => setGlobalSettings({ ...globalSettings, logoAlignment: align })}
+                                                    className={`flex-1 py-3 rounded-xl font-bold border transition ${globalSettings.logoAlignment === align ? 'bg-tech-primary text-black border-tech-primary' : 'bg-gray-800 text-gray-400 border-gray-700 hover:text-white'}`}
+                                                >
+                                                    {align === 'left' ? 'Left Aligned' : 'Centered'}
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
-                                    <button
-                                        type="submit"
-                                        disabled={isSaving}
-                                        className={`w-full font-bold py-4 rounded-xl shadow-lg transition ${isSaving ? 'bg-gray-600 cursor-not-allowed' : 'bg-tech-secondary hover:bg-blue-600'} text-white`}
-                                    >
-                                        {isSaving ? 'Saving...' : 'Save Settings'}
-                                    </button>
-                                </form>
-                            </div>
-                        )
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={isSaving}
+                                    className={`w-full font-bold py-4 rounded-xl shadow-lg transition ${isSaving ? 'bg-gray-600 cursor-not-allowed' : 'bg-tech-secondary hover:bg-blue-600'} text-white`}
+                                >
+                                    {isSaving ? 'Saving...' : 'Save Settings'}
+                                </button>
+                            </form>
+                        </div>
                     )}
                 </div>
             )}
