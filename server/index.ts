@@ -99,8 +99,13 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '5MB' }));
 
 // --- Auth Middleware ---
 const authMiddleware = (req: any, res: any, next: any) => {
-    if (req.headers['x-admin-token'] === ADMIN_PASSWORD) next();
-    else res.status(401).json({ error: 'Unauthorized' });
+    const token = req.headers['x-admin-token'];
+    if (token === ADMIN_PASSWORD.trim()) {
+        next();
+    } else {
+        console.warn('❌ Unauthorized access attempt. Correct password starts with:', ADMIN_PASSWORD.substring(0, 2));
+        res.status(401).json({ error: 'Unauthorized' });
+    }
 };
 
 // --- Models ---

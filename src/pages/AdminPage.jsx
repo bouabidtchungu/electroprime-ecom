@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const AdminPage = () => {
     // Auth State
-    const [adminToken, setAdminToken] = useState(sessionStorage.getItem('adminToken') || '');
+    const [adminToken, setAdminToken] = useState(localStorage.getItem('adminToken') || '');
     const [passwordInput, setPasswordInput] = useState('');
 
     // Tab State
@@ -47,14 +47,12 @@ const AdminPage = () => {
 
     const handleLogin = (e) => {
         e.preventDefault();
-        // Since we don't have a dedicated login API yet, we just set the token
-        // and let the subsequent fetch calls fail if the token is wrong.
-        sessionStorage.setItem('adminToken', passwordInput);
+        localStorage.setItem('adminToken', passwordInput);
         setAdminToken(passwordInput);
     };
 
     const handleLogout = () => {
-        sessionStorage.removeItem('adminToken');
+        localStorage.removeItem('adminToken');
         setAdminToken('');
         setPasswordInput('');
     };
